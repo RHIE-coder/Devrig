@@ -1,11 +1,17 @@
-# Qutilx
+# DevRig
 
-**Qutilx** is a modular, language-agnostic utility runtime —  
-a toolkit that lets you run and orchestrate utilities written in any language  
-through a single, unified interface.
+> 개발자 장비 세트빌더와 자동화 스크립트에 최적화된 유틸리티 코어
 
-Run Python, Go, Rust, JavaScript, or TypeScript utilities seamlessly  
-without switching environments.
+## 이름의 의미
 
-> **Run any code. Any language. One interface.**
+DevRig는 개발자가 바로 작업에 들어갈 수 있도록 필요한 도구와 구성품을 한 곳에 묶어주는 "장비 세트"라는 뜻입니다. 개발을 위한 필수 유틸리티와 프로젝트 생성기를 빠르게 갖춰주는 기반이라는 메시지를 담고 있습니다.
+
+**Rig**는 상황에 따라 여러 의미가 있지만, 개발자나 하드웨어 매니아들 사이에서는 보통 **특정 목적을 위해 정교하게 짜여진 장비나 설정**을 의미합니다.
+
+
+## 프로젝트 목표
+
+- 개발에 도움이 되는 유틸리티를 모아 한 곳에서 관리
+- 각종 Project Generator를 제공해 빠르게 개발에 착수
+- 유틸리티 코어 지향
 
