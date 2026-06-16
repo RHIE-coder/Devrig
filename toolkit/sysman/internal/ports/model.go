@@ -39,7 +39,7 @@ type Listener struct {
 	Port      uint32    `json:"port"`
 	Addr      string    `json:"addr"`
 	PID       int32     `json:"pid"`
-	PPID      int32     `json:"ppid"` // parent PID; PPID 1 means the launching terminal is gone (orphan)
+	PPID      int32     `json:"ppid"` // parent PID; reparented to the OS init process (PID 1 on Unix) often means the launching terminal is gone (orphan)
 	Process   string    `json:"process"`
 	Project   string    `json:"project"`
 	Cwd       string    `json:"cwd"`

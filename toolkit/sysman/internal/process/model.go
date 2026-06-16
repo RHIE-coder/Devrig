@@ -374,51 +374,14 @@ func snapshot(p *process.Process) Process {
 	}
 }
 
-// systemPrefixes are executable-path prefixes for OS-managed processes that are
-// children of launchd (PID 1) by design — GUI apps, system daemons, login
-// services. They are NOT orphans.
-var systemPrefixes = []string{
-	"/System/", "/Library/Apple/", "/Applications/",
-	"/usr/libexec/", "/usr/sbin/", "/usr/bin/", "/sbin/", "/bin/",
-}
-
-// LikelyOrphan reports whether a process is *probably* an orphan: a user-space
-// process reparented to launchd (PID 1) because the parent that spawned it —
-// typically a terminal/shell — has exited.
-//
-// PPID 1 alone is NOT enough: on macOS launchd is the legitimate parent of the
-// majority of processes (most GUI apps and system daemons), so we exclude those
-// by executable path. This is a heuristic, not a guarantee (e.g. brew-managed
-// services also run under launchd), so callers should hedge their wording.
-func LikelyOrphan(ppid int32, cmdline string) bool {
-	if ppid != 1 {
-		return false
-	}
-	cmd := strings.TrimSpace(cmdline)
-	if cmd == "" {
-		return false // unreadable cmdline → a system/root process we can't classify
-	}
-	exe := cmd
-	if i := strings.IndexByte(cmd, ' '); i >= 0 {
-		exe = cmd[:i] // first token is the executable
-	}
-	for _, p := range systemPrefixes {
-		if strings.HasPrefix(exe, p) {
-			return false
-		}
-	}
-	// Anything under a Library/ dir — /Library, ~/Library, /System/Library — is
-	// app support, a framework helper, or a login agent that launchd manages on
-	// purpose (CoreSimulator, updaters, JetBrains/Codex daemons, …).
-	if strings.Contains(exe, "/Library/") {
-		return false
-	}
-	return true
-}
+// The orphan heuristic (LikelyOrphan / IsRootParent / InitName) is OS-specific
+// and lives in orphan_{darwin,linux,windows}.go behind the wrappers in
+// orphan.go.
 
 // Ancestry returns the parent chain for pid, ordered from the process itself up
-// to the root (PID 1 / launchd). The first element is pid, the last is the
-// topmost reachable ancestor. This is the process "족보": who launched whom.
+// to the root (the OS init process, PID 1 on Unix). The first element is pid,
+// the last is the topmost reachable ancestor. This is the process "족보": who
+// launched whom.
 // A reparented orphan (e.g. a detached dev server whose terminal closed) shows
 // up here as a short chain ending directly at PID 1.
 func Ancestry(pid int32) ([]Process, error) {

@@ -191,9 +191,9 @@ func (m Model) renderDetail() string {
 
 	head := detailKeyStyle.Render(fmt.Sprintf("PPID %d", ppid))
 	if process.LikelyOrphan(ppid, cmdline) {
-		head += treeOrphanStyle.Render(" (고아 가능성·launchd 직속)")
-	} else if ppid == 1 {
-		head += detailHintStyle.Render(" (launchd 직속)")
+		head += treeOrphanStyle.Render(" (고아 가능성·" + process.InitName() + " 직속)")
+	} else if process.IsRootParent(ppid) {
+		head += detailHintStyle.Render(" (" + process.InitName() + " 직속)")
 	}
 	if name != "" {
 		head += detailStyle.Render(" · " + name)
@@ -210,7 +210,8 @@ func (m Model) renderDetail() string {
 }
 
 // renderTree draws the focused process's ancestry: itself at the top, each
-// parent indented below, up to launchd. Each node shows how it was launched.
+// parent indented below, up to the root process. Each node shows how it was
+// launched.
 func (m Model) renderTree() string {
 	var b strings.Builder
 	b.WriteString(treeTitleStyle.Render(fmt.Sprintf("Ancestry of PID %d — 부모 체인 (root까지)", m.treePID)))
@@ -242,8 +243,8 @@ func (m Model) renderTree() string {
 		node := fmt.Sprintf("%s%d %s", prefix, p.PID, p.Name)
 		if process.LikelyOrphan(p.PPID, p.Cmdline) {
 			node += treeOrphanStyle.Render("  (고아 가능성)")
-		} else if p.PPID == 1 {
-			node += detailHintStyle.Render("  (launchd 직속)")
+		} else if process.IsRootParent(p.PPID) {
+			node += detailHintStyle.Render("  (" + process.InitName() + " 직속)")
 		}
 		line := treeNodeStyle.Render(node)
 		if c := strings.TrimSpace(p.Cmdline); c != "" {

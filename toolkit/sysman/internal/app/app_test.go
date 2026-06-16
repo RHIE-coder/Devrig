@@ -93,13 +93,18 @@ func TestAncestryOverlay(t *testing.T) {
 		"child",
 		"./child --serve", // launch command shown in the tree
 		"npm run dev",
-		"launchd",
-		"고아 가능성",   // starter (PPID 1, user process) flagged as a likely orphan
+		"launchd",  // node name, set above — present regardless of host OS
 		"esc/t 닫기", // close hint
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("overlay view missing %q in:\n%s", want, out)
 		}
+	}
+
+	// The orphan marker is a per-OS heuristic (only PID-1 reparenting platforms
+	// flag the PPID-1 "starter" node), so assert it only where it applies.
+	if process.LikelyOrphan(1, "npm run dev") && !strings.Contains(out, "고아 가능성") {
+		t.Errorf("overlay view missing orphan marker %q in:\n%s", "고아 가능성", out)
 	}
 
 	// esc closes the overlay.
