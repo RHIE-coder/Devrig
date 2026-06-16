@@ -39,9 +39,11 @@ type Listener struct {
 	Port      uint32    `json:"port"`
 	Addr      string    `json:"addr"`
 	PID       int32     `json:"pid"`
+	PPID      int32     `json:"ppid"` // parent PID; PPID 1 means the launching terminal is gone (orphan)
 	Process   string    `json:"process"`
 	Project   string    `json:"project"`
 	Cwd       string    `json:"cwd"`
+	Cmdline   string    `json:"cmdline"` // full command line the listener was launched with
 	CPU       float64   `json:"cpu"`
 	Mem       float32   `json:"mem"`
 	Started   time.Time `json:"started"`     // process start time (zero if unknown)
@@ -391,9 +393,11 @@ func Gather() ([]Listener, error) {
 			Port:      c.Laddr.Port,
 			Addr:      c.Laddr.IP,
 			PID:       c.Pid,
+			PPID:      info.PPID,
 			Process:   info.Process,
 			Project:   info.Project,
 			Cwd:       info.Cwd,
+			Cmdline:   info.Cmdline,
 			CPU:       info.CPU,
 			Mem:       info.Mem,
 			Started:   info.Started,
@@ -427,6 +431,8 @@ func gatherProc(pid int32) Listener {
 	if name, err := p.Name(); err == nil {
 		l.Process = name
 	}
+	l.PPID, _ = p.Ppid()
+	l.Cmdline, _ = p.Cmdline()
 	l.Cwd, _ = p.Cwd()
 	l.CPU, _ = p.CPUPercent()
 	l.Mem, _ = p.MemoryPercent()

@@ -16,8 +16,10 @@ allowed-tools: Bash(devrig:*), Bash(~/go/bin/devrig:*), Read
    devrig run sysman --json ports
    ```
 
-   각 항목: `port, addr, pid, process, project, cwd, cpu, mem, started, uptime_sec`.
+   각 항목: `port, addr, pid, ppid, process, project, cwd, cmdline, cpu, mem, started, uptime_sec`.
    (`started`=RFC3339 시작시각, `uptime_sec`=실행 경과 초 → "며칠째 떠 있는지", "언제 띄웠는지" 답에 사용)
+   - `cmdline` = **어떻게 실행했는지**(전체 실행 커맨드라인). "이 서버 어떻게 띄운 거야?" 질문에 그대로 사용.
+   - `ppid` = 부모 PID. **`ppid`가 1이면 띄운 터미널이 이미 사라진 "고아"** 라는 뜻 → 그 터미널에서 Ctrl+C로 못 죽이니 pid/포트로 죽여야 함을 안내.
    `devrig`이 PATH에 없으면 `~/go/bin/devrig` 을 사용하세요.
 
 2. **전체 프로세스 스냅샷 (CPU 내림차순, JSON)**
@@ -26,9 +28,21 @@ allowed-tools: Bash(devrig:*), Bash(~/go/bin/devrig:*), Read
    devrig run sysman --json ps
    ```
 
-   "CPU/MEM top N" 같은 질문은 이 출력을 정렬·상위 N개로 답하세요.
+   각 항목에 `ppid`, `cmdline` 포함. "CPU/MEM top N" 같은 질문은 이 출력을 정렬·상위 N개로 답하세요.
+   족보를 직접 조립할 때는 이 덤프에서 `pid → ppid` 를 따라 올라가도 되지만, 보통은 아래 `tree` 가 더 간편합니다.
 
-3. **현재 TUI가 포커스 중인 항목** — 사용자가 "이거", "지금 가리키는", "선택한" 이라고 하면
+3. **프로세스 족보 / 부모 체인 (JSON)** — "누가 띄웠어?", "부모가 뭐야?", "족보 떠줘", "왜 독립 프로세스로 도나" 류 질문에 사용.
+
+   ```bash
+   devrig run sysman --json tree <pid>
+   ```
+
+   해당 `pid`부터 루트(`launchd`, PID 1)까지 **조상 체인을 위로 올라가며** 배열로 반환합니다.
+   배열[0]=대상 프로세스, 마지막=최상위 조상. 각 노드: `pid, ppid, name, cmdline, ...`.
+   - 답할 때는 들여쓰기 트리(`└─`)로 **누가 무엇의 부모인지** 보여주고, 각 노드의 `cmdline`으로 **어떻게 실행됐는지** 곁들이세요.
+   - 체인이 짧고 바로 `ppid 1`로 끝나면 → 띄운 터미널이 닫혀 OS가 `launchd`로 reparent(입양)한 **고아**. 그래서 부모와 무관하게 계속 돈다고 설명.
+
+4. **현재 TUI가 포커스 중인 항목** — 사용자가 "이거", "지금 가리키는", "선택한" 이라고 하면
    상태 파일을 읽으세요 (`$XDG_STATE_HOME` 우선, 없으면 아래 경로):
 
    ```bash

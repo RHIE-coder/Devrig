@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -60,7 +61,20 @@ func emitJSON(args []string) error {
 			return err
 		}
 		return enc.Encode(items)
+	case "tree", "ancestry":
+		if len(args) < 2 {
+			return fmt.Errorf("json %s needs a pid: --json %s <pid>", kind, kind)
+		}
+		pid, err := strconv.Atoi(args[1])
+		if err != nil {
+			return fmt.Errorf("invalid pid %q: %w", args[1], err)
+		}
+		chain, err := process.Ancestry(int32(pid))
+		if err != nil {
+			return err
+		}
+		return enc.Encode(chain)
 	default:
-		return fmt.Errorf("unknown json kind %q (use: ports | ps)", kind)
+		return fmt.Errorf("unknown json kind %q (use: ports | ps | tree <pid>)", kind)
 	}
 }

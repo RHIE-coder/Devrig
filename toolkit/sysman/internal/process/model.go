@@ -24,11 +24,13 @@ const refreshInterval = 2 * time.Second
 // `--json ps` headless mode.
 type Process struct {
 	PID       int32     `json:"pid"`
+	PPID      int32     `json:"ppid"`    // parent PID (0 if unknown); follow upward for the ancestry chain
 	Name      string    `json:"name"`
 	User      string    `json:"user"`
 	Status    string    `json:"status"`
 	CPU       float64   `json:"cpu"`
 	Mem       float32   `json:"mem"`
+	Cmdline   string    `json:"cmdline"`    // full command line the process was launched with (how it was started)
 	Started   time.Time `json:"started"`    // process start time (zero if unknown)
 	UptimeSec int64     `json:"uptime_sec"` // how long the process has been running
 }
@@ -307,38 +309,79 @@ func Gather() ([]Process, error) {
 
 	out := make([]Process, 0, len(procs))
 	for _, p := range procs {
-		name, _ := p.Name()
-		user, _ := p.Username()
-
-		status := ""
-		if s, err := p.Status(); err == nil && len(s) > 0 {
-			status = s[0]
-		}
-
-		cpu, _ := p.CPUPercent()
-		mem, _ := p.MemoryPercent()
-
-		var started time.Time
-		var uptime int64
-		if ct, err := p.CreateTime(); err == nil && ct > 0 {
-			started = time.UnixMilli(ct)
-			uptime = int64(time.Since(started).Seconds())
-		}
-
-		out = append(out, Process{
-			PID:       p.Pid,
-			Name:      name,
-			User:      user,
-			Status:    status,
-			CPU:       cpu,
-			Mem:       mem,
-			Started:   started,
-			UptimeSec: uptime,
-		})
+		out = append(out, snapshot(p))
 	}
 
 	sort.Slice(out, func(i, j int) bool { return out[i].CPU > out[j].CPU })
 	return out, nil
+}
+
+// snapshot reads a single process into a Process. Best-effort: any field that
+// can't be read (permissions, race with exit) is left at its zero value.
+func snapshot(p *process.Process) Process {
+	name, _ := p.Name()
+	user, _ := p.Username()
+	ppid, _ := p.Ppid()
+	cmdline, _ := p.Cmdline()
+
+	status := ""
+	if s, err := p.Status(); err == nil && len(s) > 0 {
+		status = s[0]
+	}
+
+	cpu, _ := p.CPUPercent()
+	mem, _ := p.MemoryPercent()
+
+	var started time.Time
+	var uptime int64
+	if ct, err := p.CreateTime(); err == nil && ct > 0 {
+		started = time.UnixMilli(ct)
+		uptime = int64(time.Since(started).Seconds())
+	}
+
+	return Process{
+		PID:       p.Pid,
+		PPID:      ppid,
+		Name:      name,
+		User:      user,
+		Status:    status,
+		CPU:       cpu,
+		Mem:       mem,
+		Cmdline:   cmdline,
+		Started:   started,
+		UptimeSec: uptime,
+	}
+}
+
+// Ancestry returns the parent chain for pid, ordered from the process itself up
+// to the root (PID 1 / launchd). The first element is pid, the last is the
+// topmost reachable ancestor. This is the process "족보": who launched whom.
+// A reparented orphan (e.g. a detached dev server whose terminal closed) shows
+// up here as a short chain ending directly at PID 1.
+func Ancestry(pid int32) ([]Process, error) {
+	if pid <= 0 {
+		return nil, fmt.Errorf("invalid pid %d", pid)
+	}
+	var chain []Process
+	seen := map[int32]bool{}
+	cur := pid
+	for cur > 0 && !seen[cur] {
+		seen[cur] = true
+		p, err := process.NewProcess(cur)
+		if err != nil {
+			if len(chain) == 0 {
+				return nil, fmt.Errorf("pid %d: %w", cur, err)
+			}
+			break // parent vanished or unreadable; return what we have
+		}
+		chain = append(chain, snapshot(p))
+		ppid, err := p.Ppid()
+		if err != nil || ppid == cur {
+			break
+		}
+		cur = ppid
+	}
+	return chain, nil
 }
 
 func loadProcesses() tea.Msg {
