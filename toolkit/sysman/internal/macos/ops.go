@@ -56,19 +56,31 @@ func readStatus() (Status, error) {
 	return st, nil
 }
 
-// rebuildSpotlight resets the Spotlight index for the boot volume group: it
-// disables indexing, removes the (often corrupt/stuck) index directory with
-// -X, then re-enables it so the index is rebuilt from scratch — the reliable
-// fix when the Data volume is stuck in "unknown indexing state" and apps go
-// missing from search.
+// rebuildVolumes are the two Spotlight stores on a modern (APFS) Mac: the
+// read-only System volume ("/") and the Data volume where /Applications and
+// /Users live. The corruption that hides apps from search is on the Data store,
+// and "/" alone does NOT cover it — they are separate stores, so both are reset.
+var rebuildVolumes = []string{"/", "/System/Volumes/Data"}
+
+// rebuildSpotlight resets the Spotlight index per volume: disable indexing,
+// remove the (often corrupt/stuck) index directory with -X, then re-enable so
+// it rebuilds from scratch — the reliable fix when a volume is stuck in
+// "unknown indexing state" and apps go missing from search.
 //
-// It targets "/" (the firmlinked root), NOT "-a": erase/remove operations on
-// the raw /System/Volumes/Data and Preboot mounts return "invalid operation",
-// which is what aborted the earlier -E -a approach. "/"'s store physically
-// lives on the Data volume, so resetting "/" clears the broken store. Requires
-// admin; the re-index then runs in the background for a few minutes.
+// It uses -i/-X per explicit volume, never `-E -a`: erase on the raw
+// /System/Volumes/Data and Preboot mounts returns "invalid operation" (which
+// aborted the earlier approach), whereas -i and -X are valid on those mounts.
+// Requires admin; the re-index then runs in the background for a few minutes.
 func rebuildSpotlight() (string, error) {
-	return runAdmin("mdutil -i off / && mdutil -X / && mdutil -i on /")
+	var cmds []string
+	for _, v := range rebuildVolumes {
+		cmds = append(cmds,
+			"mdutil -i off "+v,
+			"mdutil -X "+v,
+			"mdutil -i on "+v,
+		)
+	}
+	return runAdmin(strings.Join(cmds, " && "))
 }
 
 // setDisableSleep sets pmset disablesleep across all power sources. Requires
