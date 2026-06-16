@@ -112,6 +112,27 @@ func (m Model) Focused() any {
 // Filter returns the active filter query (empty if none), for state export.
 func (m Model) Filter() string { return m.filter }
 
+// FocusedPID returns the PID of the selected listener (0 if none), so the parent
+// can build that process's ancestry overlay.
+func (m Model) FocusedPID() int32 {
+	i := m.table.Cursor()
+	if i < 0 || i >= len(m.shown) {
+		return 0
+	}
+	return m.shown[i].PID
+}
+
+// FocusedDetail returns the selected listener's parent and launch command for
+// the footer detail line. ok is false when nothing is selected.
+func (m Model) FocusedDetail() (ppid int32, name, cmdline string, ok bool) {
+	i := m.table.Cursor()
+	if i < 0 || i >= len(m.shown) {
+		return 0, "", "", false
+	}
+	l := m.shown[i]
+	return l.PPID, l.Process, l.Cmdline, true
+}
+
 // Visible returns the rows currently listed (after filtering), capped so the
 // state file stays small, for state export.
 func (m Model) Visible() any {

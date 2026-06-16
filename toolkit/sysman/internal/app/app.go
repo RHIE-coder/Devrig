@@ -4,6 +4,7 @@
 package app
 
 import (
+	"fmt"
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -23,9 +24,9 @@ const (
 
 var tabNames = []string{"Ports", "Processes"}
 
-// chromeHeight is the rows used by the title bar, tab row, divider, and footer
-// (1 each). The active view gets the rest.
-const chromeHeight = 4
+// chromeHeight is the rows used by the title bar, tab row, divider, detail line,
+// and footer (1 each). The active view gets the rest.
+const chromeHeight = 5
 
 // Model is the top-level tea.Model. Key events go to the focused view (unless
 // that view is capturing filter input); all other messages are broadcast to
@@ -37,6 +38,13 @@ type Model struct {
 	width       int
 	height      int
 	showStarted bool // AGE columns show absolute start time instead of elapsed age
+
+	// Ancestry overlay: a point-in-time parent chain (족보) for the focused
+	// process, shown over the table when the user presses 't'.
+	showTree  bool
+	treePID   int32
+	treeChain []process.Process
+	treeErr   error
 }
 
 // New returns a Model with the Ports view selected (the primary use case).
@@ -62,6 +70,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		// The ancestry overlay captures keys while open: esc/t close it, quit
+		// keys still quit, everything else is ignored so the table underneath
+		// doesn't move.
+		if m.showTree {
+			switch msg.String() {
+			case "ctrl+c", "q":
+				return m, tea.Quit
+			case "esc", "t":
+				m.showTree = false
+			}
+			return m, nil
+		}
+
 		// While the active view is capturing filter input, every key belongs to
 		// it — don't steal "q", "1", etc. as global shortcuts.
 		if !m.activeFiltering() {
@@ -80,11 +101,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.active = viewProcesses
 				m.publishFocus()
 				return m, nil
-			case "t":
+			case "a":
 				// Global toggle: AGE ⇄ absolute start time, on both views.
 				m.showStarted = !m.showStarted
 				m.ports.SetTimeMode(m.showStarted)
 				m.procs.SetTimeMode(m.showStarted)
+				return m, nil
+			case "t":
+				// Open the ancestry (족보) overlay for the focused process.
+				if pid := m.focusedPID(); pid > 0 {
+					m.treePID = pid
+					m.treeChain, m.treeErr = process.Ancestry(pid)
+					m.showTree = true
+				}
 				return m, nil
 			}
 		}
@@ -114,16 +143,120 @@ func (m Model) View() string {
 	tabs := m.renderTabs()
 	divider := dividerStyle.Render(strings.Repeat("─", max(m.width, 1)))
 
-	var body string
-	switch m.active {
-	case viewPorts:
-		body = m.ports.View()
-	case viewProcesses:
-		body = m.procs.View()
+	var body, detail string
+	if m.showTree {
+		body = m.renderTree()
+		detail = detailHintStyle.Render("족보(ancestry) · esc/t 닫기")
+	} else {
+		switch m.active {
+		case viewPorts:
+			body = m.ports.View()
+		case viewProcesses:
+			body = m.procs.View()
+		}
+		detail = m.renderDetail()
 	}
 
-	footer := footerStyle.Render("tab/1-2 switch · ↑/↓ navigate · / filter · t age⇄time · r refresh · k kill · K force-kill · q quit")
-	return lipgloss.JoinVertical(lipgloss.Left, title, tabs, divider, body, footer)
+	footer := footerStyle.Render("tab/1-2 switch · ↑/↓ navigate · / filter · t tree · a age⇄time · r refresh · k kill · K force-kill · q quit")
+	return lipgloss.JoinVertical(lipgloss.Left, title, tabs, divider, body, detail, footer)
+}
+
+// focusedPID returns the PID selected in the active view (0 if none).
+func (m Model) focusedPID() int32 {
+	switch m.active {
+	case viewPorts:
+		return m.ports.FocusedPID()
+	case viewProcesses:
+		return m.procs.FocusedPID()
+	}
+	return 0
+}
+
+// renderDetail is the always-visible line under the table: the selected row's
+// parent and the exact command it was launched with — the two things the table
+// columns don't have room for.
+func (m Model) renderDetail() string {
+	var ppid int32
+	var name, cmdline string
+	var ok bool
+	switch m.active {
+	case viewPorts:
+		ppid, name, cmdline, ok = m.ports.FocusedDetail()
+	case viewProcesses:
+		ppid, name, cmdline, ok = m.procs.FocusedDetail()
+	}
+	if !ok {
+		return detailHintStyle.Render("(no selection)")
+	}
+
+	head := detailKeyStyle.Render(fmt.Sprintf("PPID %d", ppid))
+	if ppid == 1 {
+		head += detailHintStyle.Render(" (orphan·터미널 없음)")
+	}
+	if name != "" {
+		head += detailStyle.Render(" · " + name)
+	}
+
+	var cmd string
+	if c := strings.TrimSpace(cmdline); c != "" {
+		cmd = detailStyle.Render(" · " + c)
+	} else {
+		cmd = detailHintStyle.Render(" · (no cmdline — 시스템/root 프로세스, sudo 필요)")
+	}
+
+	return truncate(head+cmd, max(m.width, 1))
+}
+
+// renderTree draws the focused process's ancestry: itself at the top, each
+// parent indented below, up to launchd. Each node shows how it was launched.
+func (m Model) renderTree() string {
+	var b strings.Builder
+	b.WriteString(treeTitleStyle.Render(fmt.Sprintf("Ancestry of PID %d — 부모 체인 (root까지)", m.treePID)))
+
+	if m.treeErr != nil {
+		b.WriteString("\n" + detailHintStyle.Render("  error: "+m.treeErr.Error()))
+		return b.String()
+	}
+	if len(m.treeChain) == 0 {
+		b.WriteString("\n" + detailHintStyle.Render("  (no ancestry)"))
+		return b.String()
+	}
+
+	// Cap depth to the body so a very deep chain can't overflow the screen.
+	limit := m.bodyHeight() - 1
+	if limit < 1 {
+		limit = 1
+	}
+	for i, p := range m.treeChain {
+		b.WriteString("\n") // the title above already occupies the first row
+		if i >= limit {
+			b.WriteString(detailHintStyle.Render(fmt.Sprintf("  … +%d more", len(m.treeChain)-i)))
+			break
+		}
+		prefix := strings.Repeat("  ", i)
+		if i > 0 {
+			prefix += "└─ "
+		}
+		node := fmt.Sprintf("%s%d %s", prefix, p.PID, p.Name)
+		if p.PPID == 1 && i == len(m.treeChain)-2 {
+			node += treeOrphanStyle.Render("  (orphan)")
+		}
+		line := treeNodeStyle.Render(node)
+		if c := strings.TrimSpace(p.Cmdline); c != "" {
+			line += treeCmdStyle.Render("  « " + c + " »")
+		} else {
+			line += detailHintStyle.Render("  « no cmdline (sudo 필요) »")
+		}
+		b.WriteString(truncate(line, max(m.width, 1)))
+	}
+
+	// Pad to the full body height so the detail/footer stay anchored to the
+	// bottom, matching the table layout.
+	out := b.String()
+	for rows := strings.Count(out, "\n") + 1; rows < m.bodyHeight(); rows++ {
+		out += "\n"
+	}
+	return out
 }
 
 func (m Model) activeFiltering() bool {
@@ -152,6 +285,12 @@ func (m Model) publishFocus() {
 		snap.Visible = m.procs.Visible()
 	}
 	state.Write(snap)
+}
+
+// truncate clips a single styled line to w terminal cells, ANSI-aware so it
+// never cuts through an escape sequence.
+func truncate(s string, w int) string {
+	return lipgloss.NewStyle().MaxWidth(w).Render(s)
 }
 
 func (m Model) bodyHeight() int {
@@ -199,4 +338,33 @@ var (
 	footerStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("241")).
 			Padding(0, 1)
+
+	// Detail line (selected row's parent + launch command).
+	detailStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("250"))
+
+	detailKeyStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("75"))
+
+	detailHintStyle = lipgloss.NewStyle().
+			Faint(true).
+			Foreground(lipgloss.Color("240"))
+
+	// Ancestry overlay.
+	treeTitleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("231")).
+			Background(lipgloss.Color("57"))
+
+	treeNodeStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("252"))
+
+	treeCmdStyle = lipgloss.NewStyle().
+			Faint(true).
+			Foreground(lipgloss.Color("245"))
+
+	treeOrphanStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(lipgloss.Color("214"))
 )
