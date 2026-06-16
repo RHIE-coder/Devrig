@@ -1,0 +1,39 @@
+id: SPEC-knowledge-layer
+name: Knowledge Layer
+version: 1
+layer: knowledge
+description: >
+  솔루션 아카이브 검색, 컨텍스트 주입, 오래된 솔루션 정리.
+
+acceptance_criteria:
+  - id: AC-K01
+    desc: "search가 동일 domain 솔루션 검색 성공"
+    testable: "domain 일치 솔루션 존재 → results에 포함"
+
+  - id: AC-K02
+    desc: "search가 아카이브 비어있으면 빈 배열"
+    testable: "솔루션 없음 → results: [], total: 0"
+
+  - id: AC-K03
+    desc: "search가 keyword 매칭으로 점수 정렬"
+    testable: "keyword 매칭 솔루션이 상위 정렬"
+
+  - id: AC-K04
+    desc: "inject가 max_inject_tokens 초과 시 truncate"
+    testable: "800 token 초과 → truncated: true"
+
+  - id: AC-K05
+    desc: "inject가 token 이내이면 전문 주입"
+    testable: "800 token 이내 → truncated: false, 전문 포함"
+
+  - id: AC-K06
+    desc: "inject가 ref_count 갱신"
+    testable: "주입 후 솔루션 파일의 ref_count 증가"
+
+  - id: AC-K07
+    desc: "prune이 ref_count=0 + 90일 경과 솔루션 식별"
+    testable: "ref_count=0, created 91일 전 → candidates에 포함"
+
+  - id: AC-K08
+    desc: "prune이 ref_count>0 솔루션 유지"
+    testable: "ref_count=3 → candidates에 미포함"

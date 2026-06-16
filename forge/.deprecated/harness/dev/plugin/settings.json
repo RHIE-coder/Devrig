@@ -1,0 +1,17 @@
+{
+  "harness": {
+    "version": "0.1.0",
+    "safety": {
+      "block_destructive": true,
+      "block_force_push": true,
+      "protect_state": true
+    },
+    "audit": {
+      "enabled": true,
+      "path": ".harness/state/audit.jsonl",
+      "rotate_mb": 10,
+      "retention_days": 90,
+      "redact_fields": ["email", "password", "token"]
+    }
+  }
+}

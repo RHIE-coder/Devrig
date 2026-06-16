@@ -1,0 +1,44 @@
+id: SPEC-review-skill
+name: Review Skill
+version: 1
+layer: quality
+description: >
+  Implement 완료된 코드에 대한 다중 리뷰어 기반 코드 리뷰 스킬.
+  G3 게이트, diff 분석, verdict 종합.
+
+acceptance_criteria:
+  - id: AC-RV01
+    desc: "HARNESS_FEATURE 없으면 review gate-check exit(1)"
+    testable: "HARNESS_FEATURE 미설정 → exit(1)"
+
+  - id: AC-RV02
+    desc: "implement.passed 없으면 gate-check exit(2) + G3 안내"
+    testable: "workflow에 implement.passed 없음 → exit(2) + stderr에 G3"
+
+  - id: AC-RV03
+    desc: "implement.passed 있으면 gate-check exit(0)"
+    testable: "implement.passed=true → exit(0) + stdout JSON에 passed:true"
+
+  - id: AC-RV04
+    desc: "diff-analyzer가 git diff 파싱 후 변경 통계 JSON 반환"
+    testable: "git 변경 존재 → files_changed, insertions, deletions 포함"
+
+  - id: AC-RV05
+    desc: "diff-analyzer가 git 실패 시 빈 분석 반환"
+    testable: "비git 환경 → files_changed:0, complexity:'unknown'"
+
+  - id: AC-RV06
+    desc: "collect-verdicts에서 ANY BLOCK → overall BLOCK + exit(2)"
+    testable: "BLOCK verdict 포함 → overall='BLOCK', exit(2)"
+
+  - id: AC-RV07
+    desc: "collect-verdicts에서 ANY NEEDS_CHANGE → overall NEEDS_CHANGE + exit(0)"
+    testable: "NEEDS_CHANGE verdict 포함 (BLOCK 없음) → overall='NEEDS_CHANGE', exit(0)"
+
+  - id: AC-RV08
+    desc: "collect-verdicts에서 ALL PASS → overall PASS + exit(0)"
+    testable: "모두 PASS → overall='PASS', exit(0)"
+
+  - id: AC-RV09
+    desc: "collect-verdicts가 결과를 review-{feature}.json에 저장"
+    testable: ".harness/state/review-{feature}.json 파일 생성 확인"

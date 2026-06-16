@@ -1,0 +1,5 @@
+name: qa
+description: "QA Stack bottom-up 실행. 계층별 테스트 + 실패 귀인 + 커버리지 추적."
+usage: "/harness:qa <domain/feature>"
+category: workflow
+phase: qa

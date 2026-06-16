@@ -1,0 +1,5 @@
+name: spec
+description: "Feature의 Spec(요구사항 + Acceptance Criteria)을 작성합니다."
+usage: "/harness:spec <domain/feature>"
+category: workflow
+phase: spec

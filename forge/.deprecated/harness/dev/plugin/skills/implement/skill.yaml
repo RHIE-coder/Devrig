@@ -1,0 +1,5 @@
+name: implement
+description: "Feature를 TDD로 구현합니다. Spec+Plan 기반, test-first."
+usage: "/harness:implement <domain/feature>"
+category: workflow
+phase: implement

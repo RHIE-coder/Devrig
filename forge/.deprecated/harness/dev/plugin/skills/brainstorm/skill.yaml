@@ -1,0 +1,5 @@
+name: brainstorm
+description: "페르소나 기반 아이디어 탐색. Spec 작성 전 다각적 관점에서 요구사항 탐색."
+usage: "/harness:brainstorm <topic> [--personas <name,...>]"
+category: workflow
+phase: brainstorm

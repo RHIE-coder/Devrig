@@ -1,0 +1,23 @@
+id: SPEC-sync-skill
+name: Sync Skill
+version: 1
+layer: workflow
+description: >
+  코드↔Spec 동기화, 엔트로피 스윕, prototype 승격.
+
+acceptance_criteria:
+  - id: AC-SY01
+    desc: "detect-drift가 spec 있고 plan 없는 drift 탐지"
+    testable: "spec 존재 + plan 미존재 → spec_without_plan drift"
+
+  - id: AC-SY02
+    desc: "detect-drift가 drift 없으면 has_drift=false"
+    testable: "spec+plan 모두 존재 → has_drift=false"
+
+  - id: AC-SY03
+    desc: "entropy-sweep이 TODO 수집"
+    testable: "소스에 TODO 포함 → todos.count > 0"
+
+  - id: AC-SY04
+    desc: "promote가 prototype 모드에서 승격 가능성 판정"
+    testable: "prototype + spec+plan+impl 존재 → can_promote=true"

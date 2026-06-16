@@ -1,0 +1,13 @@
+id: SPEC-{{domain}}-{{feature}}
+name: "{{feature_name}}"
+version: 1
+domain: "{{domain}}"
+feature: "{{feature}}"
+description: >
+  {{description}}
+
+acceptance_criteria:
+  - id: AC-001
+    desc: "{{ac_description}}"
+    testable: "{{how_to_test}}"
+    priority: must  # must | should | could

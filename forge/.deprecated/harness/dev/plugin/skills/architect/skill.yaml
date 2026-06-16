@@ -1,0 +1,5 @@
+name: architect
+description: "시스템 아키텍처 결정 (ADR). medium+ 프로젝트 필수."
+usage: "/harness:architect <domain/feature> [--force-size]"
+category: workflow
+phase: architect

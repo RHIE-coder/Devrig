@@ -1,0 +1,5 @@
+name: sync
+description: "코드↔Spec 동기화, 엔트로피 스윕, prototype→standard 승격."
+usage: "/harness:sync [--promote] [--from <spec|code>]"
+category: workflow
+phase: any

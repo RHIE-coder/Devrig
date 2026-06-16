@@ -1,0 +1,5 @@
+name: refactor
+description: "행동 보존 코드 리팩토링. Spec 불변 검증, 테스트 동등성 확인."
+usage: "/harness:refactor <domain/feature> [--bypass-coverage] [--bypass-invariant]"
+category: workflow
+phase: refactor

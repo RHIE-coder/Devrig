@@ -1,0 +1,56 @@
+id: SPEC-state-layer
+name: State + Context Layer
+version: 1
+layer: state
+description: >
+  세션 시작/종료 시 워크플로우 상태를 저장하고 복원하는 연속성 확보.
+  Event Sourcing 기반 상태 관리, compact recovery, mode 판정.
+
+acceptance_criteria:
+  - id: AC-ST01
+    desc: "세션 시작 시 workflow.json 없으면 초기 스키마로 생성"
+    testable: "load-state.mjs 실행 — .harness/state/workflow.json 생성, v=1, mode=standard"
+
+  - id: AC-ST02
+    desc: "세션 시작 시 workflow.json 있으면 로드 + 상태 요약 주입"
+    testable: "기존 workflow.json → load-state.mjs → stdout에 mode/features JSON"
+
+  - id: AC-ST03
+    desc: "Stop 시 phase/gates_passed 갱신"
+    testable: "HARNESS_FEATURE + HARNESS_PHASE 환경변수 → update-workflow.mjs → workflow.json 반영"
+
+  - id: AC-ST04
+    desc: "compact-recovery: snapshot 손상 → events fold 재구축"
+    testable: "workflow.json 손상(invalid JSON) + events 존재 → compact-recovery.mjs → 유효한 workflow.json"
+
+  - id: AC-ST05
+    desc: "upcaster: v1 이벤트 → 최신 버전 변환"
+    testable: "v1 QAPassed 이벤트 → upcast() → v=3, duration_ms/agent_id 필드 존재"
+
+  - id: AC-ST06
+    desc: "upcaster: 필드 누락 시 default 주입"
+    testable: "duration_ms 없는 v1 이벤트 → upcast() → duration_ms=null"
+
+  - id: AC-ST07
+    desc: "event-emit: feature event 기록"
+    testable: "SpecCreated 이벤트 emit → events/{domain}/{feature}/{YYYY-MM}.jsonl 생성"
+
+  - id: AC-ST08
+    desc: "event-emit: 동시 호출 시 flock 직렬화 무결성"
+    testable: "동시 5회 호출 후 JSONL 줄 수 = 5, JSON 파싱 전부 성공"
+
+  - id: AC-ST09
+    desc: "determine-mode: opt-in 설정 시 mode 분류"
+    testable: "config.yaml mode: prototype → determine-mode.mjs → workflow.json mode=prototype"
+
+  - id: AC-ST10
+    desc: "determine-mode: opt-in 꺼져 있으면 skip"
+    testable: "config.yaml에 mode 없음 → determine-mode.mjs → workflow.json 변경 없음"
+
+  - id: AC-ST11
+    desc: "compact-recovery: events도 없으면 조용히 통과"
+    testable: ".harness/ 존재, events/ 없음, workflow.json 없음 → exit(0)"
+
+  - id: AC-ST12
+    desc: "하네스 미초기화 프로젝트에서 조용히 통과"
+    testable: ".harness/ 없는 프로젝트 → 모든 state 스크립트 exit(0)"

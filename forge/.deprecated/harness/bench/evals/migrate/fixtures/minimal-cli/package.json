@@ -1,0 +1,8 @@
+{
+  "name": "minimal-cli",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": {
+    "mycli": "./cli.mjs"
+  }
+}

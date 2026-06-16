@@ -1,0 +1,27 @@
+id: SPEC-deploy-skill
+name: Deploy Skill
+version: 1
+layer: workflow
+description: >
+  배포 게이트 (G4) + pre-deploy snapshot.
+
+acceptance_criteria:
+  - id: AC-DP01
+    desc: "qa.passed 없으면 gate-check exit(2)"
+    testable: "qa.passed 미존재 → exit(2) + G4 안내"
+
+  - id: AC-DP02
+    desc: "qa.passed=true → exit(0)"
+    testable: "qa.passed=true → exit(0) + passed:true"
+
+  - id: AC-DP03
+    desc: "explore 모드에서 배포 차단"
+    testable: "mode=explore → exit(2)"
+
+  - id: AC-DP04
+    desc: "bypass-reason → G4 bypass + audit"
+    testable: "HARNESS_BYPASS_REASON 설정 → exit(0) + bypassed:true"
+
+  - id: AC-DP05
+    desc: "pre-deploy-snapshot이 git SHA + coverage 기록"
+    testable: "deploy-{feature}.json에 git.sha, coverage 포함"

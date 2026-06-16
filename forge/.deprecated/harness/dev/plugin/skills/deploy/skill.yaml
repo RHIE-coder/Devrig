@@ -1,0 +1,5 @@
+name: deploy
+description: "배포 게이트 (G4). QA 통과 후 배포를 실행합니다."
+usage: "/harness:deploy <domain/feature> [--reason <bypass-reason>]"
+category: workflow
+phase: deploy

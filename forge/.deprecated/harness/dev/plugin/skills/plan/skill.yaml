@@ -1,0 +1,5 @@
+name: plan
+description: "Feature의 구현 Plan(태스크 분해 + AC 매핑)을 작성합니다."
+usage: "/harness:plan <domain/feature>"
+category: workflow
+phase: plan

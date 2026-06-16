@@ -1,0 +1,28 @@
+id: SPEC-init-skill
+name: Init Skill
+version: 1
+layer: workflow
+description: >
+  프로젝트에 하네스를 초기 구성하는 스킬.
+  .harness/ 디렉토리 생성, config.yaml 생성, example 복사.
+
+acceptance_criteria:
+  - id: AC-I01
+    desc: "/harness:init → .harness/ 구조 생성"
+    testable: "scaffold-harness.mjs 실행 → .harness/state/, .harness/specs/, .harness/plans/ 존재"
+
+  - id: AC-I02
+    desc: "/harness:init → config.yaml 생성 (mode: standard 기본)"
+    testable: "gen-config.mjs 실행 → .harness/config.yaml에 mode: standard"
+
+  - id: AC-I03
+    desc: "/harness:init --mode prototype → config.yaml에 mode: prototype"
+    testable: "HARNESS_MODE=prototype gen-config.mjs → config.yaml에 mode: prototype"
+
+  - id: AC-I04
+    desc: "이미 .harness/ 존재 시 덮어쓰기 않음"
+    testable: "기존 .harness/ → scaffold-harness.mjs → status: exists"
+
+  - id: AC-I05
+    desc: "example 복사: 기존 파일 미덮어쓰기"
+    testable: "기존 CLAUDE.md 존재 → copy-examples.mjs → CLAUDE.md 변경 없음"

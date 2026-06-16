@@ -1,0 +1,5 @@
+name: init
+description: "프로젝트에 하네스를 초기 구성합니다. .harness/ 디렉토리와 config.yaml을 생성합니다."
+usage: "/harness:init [--mode standard|prototype|explore]"
+category: workflow
+phase: setup

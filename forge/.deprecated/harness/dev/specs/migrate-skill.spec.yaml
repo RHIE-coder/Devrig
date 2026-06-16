@@ -1,0 +1,39 @@
+id: SPEC-migrate-skill
+name: Migrate Skill
+version: 1
+layer: workflow
+description: >
+  기존 프로젝트 하네스 도입. 결정론적 스크립트 (detect-stack, scaffold-harness, dispatch).
+
+acceptance_criteria:
+  - id: AC-MG01
+    desc: "detect-stack이 package.json → javascript 감지"
+    testable: "package.json + express dep → language=javascript, framework=express"
+
+  - id: AC-MG02
+    desc: "detect-stack이 tsconfig.json → typescript 감지"
+    testable: "tsconfig.json 존재 → language=typescript"
+
+  - id: AC-MG03
+    desc: "detect-stack이 requirements.txt + flask → python/flask 감지"
+    testable: "requirements.txt에 flask → language=python, framework=flask"
+
+  - id: AC-MG04
+    desc: "scaffold-harness가 .harness/ 구조 생성"
+    testable: ".harness/specs, .harness/plans, .harness/state 디렉토리 존재"
+
+  - id: AC-MG05
+    desc: "scaffold-harness가 prototype mode config 생성"
+    testable: "config.yaml에 mode: prototype"
+
+  - id: AC-MG06
+    desc: "scaffold-harness가 이미 존재 시 exit(2)"
+    testable: ".harness/ 이미 존재 → exit(2) + status='exists'"
+
+  - id: AC-MG07
+    desc: "dispatch가 유효한 서브커맨드 파싱"
+    testable: "/harness:migrate analyze → subcommand='analyze'"
+
+  - id: AC-MG08
+    desc: "dispatch가 유효하지 않은 서브커맨드 → exit(1)"
+    testable: "/harness:migrate invalid → exit(1)"

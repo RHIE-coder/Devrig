@@ -1,0 +1,7 @@
+{
+  "name": "harness",
+  "version": "0.1.0",
+  "description": "Agentic engineering harness — workflow, guardrails, quality pipeline for Claude Code",
+  "author": "rhiemh",
+  "main": "hooks/hooks.json"
+}

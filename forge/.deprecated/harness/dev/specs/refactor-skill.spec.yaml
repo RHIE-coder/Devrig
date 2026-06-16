@@ -1,0 +1,27 @@
+id: SPEC-refactor-skill
+name: Refactor Skill
+version: 1
+layer: workflow
+description: >
+  행동 보존 리팩토링. 커버리지 임계값, Spec 불변 검증, 테스트 동등성.
+
+acceptance_criteria:
+  - id: AC-RF01
+    desc: "gate-check가 coverage < min → exit(2)"
+    testable: "coverage=50%, min=70% → exit(2)"
+
+  - id: AC-RF02
+    desc: "gate-check가 bypass-coverage → exit(0)"
+    testable: "HARNESS_BYPASS_COVERAGE=true → exit(0) + bypassed:true"
+
+  - id: AC-RF03
+    desc: "snapshot이 Spec 해시 기록"
+    testable: "refactor-snapshot-{feature}.json에 spec_hash 포함"
+
+  - id: AC-RF04
+    desc: "verify-spec-unchanged가 해시 일치 → exit(0)"
+    testable: "변경 없음 → unchanged=true"
+
+  - id: AC-RF05
+    desc: "verify-spec-unchanged가 해시 불일치 → exit(2)"
+    testable: "spec 변경됨 → exit(2) + unchanged=false"

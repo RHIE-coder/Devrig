@@ -1,0 +1,27 @@
+id: SPEC-architect-skill
+name: Architect Skill
+version: 1
+layer: workflow
+description: >
+  시스템 아키텍처 결정 (ADR). 의존성 분석, 제약 조건 수집.
+
+acceptance_criteria:
+  - id: AC-AR01
+    desc: "gate-check가 spec 없으면 exit(2)"
+    testable: "spec 미존재 → exit(2) + G1"
+
+  - id: AC-AR02
+    desc: "gate-check가 small + force 없으면 exit(2)"
+    testable: "right-size=small, force=false → exit(2)"
+
+  - id: AC-AR03
+    desc: "gate-check가 medium → exit(0)"
+    testable: "right-size=medium + spec 존재 → exit(0)"
+
+  - id: AC-AR04
+    desc: "dep-graph가 import 분석 후 edge 목록 반환"
+    testable: "src/ 내 import 존재 → edges.length > 0"
+
+  - id: AC-AR05
+    desc: "check-constraints가 Spec에서 기술 키워드 추출"
+    testable: "spec에 '인증' 포함 → security 카테고리 탐지"

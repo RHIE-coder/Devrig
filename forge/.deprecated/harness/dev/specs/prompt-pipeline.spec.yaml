@@ -1,0 +1,35 @@
+id: SPEC-prompt-pipeline
+name: Prompt Pipeline
+version: 1
+layer: quality
+description: >
+  프롬프트 모호성/스코프 검사, 자연어 → bypass 자동변환.
+
+acceptance_criteria:
+  - id: AC-PP01
+    desc: "quality-check가 모호한 키워드 경고"
+    testable: "'빠르게' 포함 → warnings에 ambiguity 항목"
+
+  - id: AC-PP02
+    desc: "quality-check가 스코프 누락 경고"
+    testable: "/harness:implement (feature 없이) → scope 경고"
+
+  - id: AC-PP03
+    desc: "quality-check가 explore 모드에서 skip"
+    testable: "mode=explore → exit(0) 경고 없음"
+
+  - id: AC-PP04
+    desc: "quality-check가 깨끗한 프롬프트에 경고 없음"
+    testable: "모호성 없는 프롬프트 → exit(0) 경고 없음"
+
+  - id: AC-PP05
+    desc: "auto-transform이 escape lexicon 키워드 감지"
+    testable: "'긴급 배포' → bypass-qa 제안"
+
+  - id: AC-PP06
+    desc: "auto-transform이 opt-in 비활성화 시 skip"
+    testable: "auto_transform=false → exit(0)"
+
+  - id: AC-PP07
+    desc: "auto-transform이 explore 모드에서 skip"
+    testable: "mode=explore → exit(0)"

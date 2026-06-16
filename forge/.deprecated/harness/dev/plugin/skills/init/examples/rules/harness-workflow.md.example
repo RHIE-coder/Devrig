@@ -1,0 +1,11 @@
+---
+description: Harness workflow rules
+globs: "**/*"
+---
+
+# Harness Workflow
+
+- Spec이 없는 feature에 코드를 작성하지 마세요
+- Plan의 각 step은 test에 매핑되어야 합니다
+- 구현 전 반드시 test를 먼저 작성하세요 (TDD)
+- 리뷰는 구현자와 다른 에이전트가 수행합니다

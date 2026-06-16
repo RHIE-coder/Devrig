@@ -1,0 +1,17 @@
+# Project Context
+
+## Harness Skills
+
+이 프로젝트는 하네스로 관리됩니다. 사용 가능한 스킬:
+
+- `/harness:spec <feature>` — Spec 작성 (AC 정의)
+- `/harness:plan <feature>` — Plan 작성 (태스크 분해)
+- `/harness:implement <feature>` — TDD 구현
+- `/harness:review <feature>` — 코드 리뷰
+- `/harness:qa <feature>` — QA 실행
+- `/harness:sync` — 코드↔Spec 동기화
+
+## Workflow
+
+Standard 모드에서의 일반적인 흐름:
+1. `/harness:spec` → 2. `/harness:plan` → 3. `/harness:implement` → 4. `/harness:review` → 5. `/harness:qa`

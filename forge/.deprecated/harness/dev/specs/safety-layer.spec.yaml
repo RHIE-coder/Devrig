@@ -1,0 +1,49 @@
+id: SPEC-safety-layer
+name: Safety Layer
+version: 1
+layer: safety
+description: >
+  하네스의 Safety Layer (Iron Laws).
+  파괴적 명령 차단, force push 차단, .harness/state/ 보호, audit 기록.
+  Config으로도 비활성화 불가.
+
+acceptance_criteria:
+  - id: AC-S01
+    desc: "rm -rf 패턴 차단"
+    testable: "block-destructive.mjs에 rm -rf 포함 명령 전달 → exit(2)"
+
+  - id: AC-S02
+    desc: "git push --force 차단"
+    testable: "block-force-push.mjs에 force push 명령 전달 → exit(2)"
+
+  - id: AC-S03
+    desc: ".harness/state/ 직접 편집 차단"
+    testable: "protect-harness.mjs에 .harness/state/ 하위 경로 전달 → exit(2)"
+
+  - id: AC-S04
+    desc: "정상 명령은 통과"
+    testable: "block-destructive.mjs에 ls, git status 전달 → exit(0)"
+
+  - id: AC-S05
+    desc: "audit-append.mjs가 flock 직렬화로 append"
+    testable: "동시 10회 호출 후 audit.jsonl 줄 수 = 10, JSON 파싱 전부 성공"
+
+  - id: AC-S06
+    desc: "git reset --hard 차단"
+    testable: "block-destructive.mjs에 git reset --hard 전달 → exit(2)"
+
+  - id: AC-S07
+    desc: "DROP TABLE/DATABASE 차단"
+    testable: "block-destructive.mjs에 DROP TABLE users 전달 → exit(2)"
+
+  - id: AC-S08
+    desc: "보호 대상이 아닌 .harness/ 파일은 통과"
+    testable: "protect-harness.mjs에 .harness/config.yaml 전달 → exit(0)"
+
+  - id: AC-S09
+    desc: "audit rotate — 파일 크기 초과 시 월별 아카이브"
+    testable: "10MB+ audit.jsonl 상태에서 append → audit-YYYY-MM.jsonl 생성"
+
+  - id: AC-S10
+    desc: "빈 입력은 안전하게 통과"
+    testable: "TOOL_INPUT 없이 각 guardrail 실행 → exit(0)"

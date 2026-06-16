@@ -1,0 +1,5 @@
+name: mode
+description: "세션 mode를 조회하거나 수동 전환합니다 (standard/prototype/explore)."
+usage: "/harness:mode [show|set <standard|prototype|explore>]"
+category: config
+phase: any

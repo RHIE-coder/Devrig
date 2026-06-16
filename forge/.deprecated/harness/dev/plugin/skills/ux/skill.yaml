@@ -1,0 +1,5 @@
+name: ux
+description: "UI/UX 설계. 접근성 검사, UX ADR 생성. Architect와 직교하는 설계 축."
+usage: "/harness:ux <domain/feature> [--platform web|ios|android]"
+category: workflow
+phase: architect

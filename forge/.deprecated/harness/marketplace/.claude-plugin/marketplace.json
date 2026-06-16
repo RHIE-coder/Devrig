@@ -1,0 +1,12 @@
+{
+  "name": "devrig-harness",
+  "owner": {
+    "name": "rhiemh"
+  },
+  "metadata": {
+    "description": "DevRig harness marketplace for Claude Code plugins",
+    "version": "0.1.0",
+    "pluginRoot": "./plugins"
+  },
+  "plugins": []
+}

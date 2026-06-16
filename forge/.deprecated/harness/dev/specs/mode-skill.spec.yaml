@@ -1,0 +1,23 @@
+id: SPEC-mode-skill
+name: Mode Skill
+version: 1
+layer: config
+description: >
+  세션 mode 조회 및 수동 전환 스킬.
+
+acceptance_criteria:
+  - id: AC-MD01
+    desc: "show가 현재 mode를 반환"
+    testable: "workflow.json에 mode=prototype → stdout에 mode='prototype'"
+
+  - id: AC-MD02
+    desc: "set이 유효한 mode로 전환"
+    testable: "set explore → workflow.json session.mode='explore'"
+
+  - id: AC-MD03
+    desc: "set auto → exit(2) 차단"
+    testable: "HARNESS_MODE=auto → exit(2)"
+
+  - id: AC-MD04
+    desc: "set 유효하지 않은 mode → exit(2)"
+    testable: "HARNESS_MODE=invalid → exit(2)"

@@ -1,0 +1,27 @@
+id: SPEC-persona-skill
+name: Persona Skill
+version: 1
+layer: config
+description: >
+  페르소나 CRUD 관리 (.claude/agents/*.md).
+
+acceptance_criteria:
+  - id: AC-PS01
+    desc: "create가 .claude/agents/{slug}.md 생성"
+    testable: "HARNESS_PERSONA_NAME 설정 → 파일 생성 + status='created'"
+
+  - id: AC-PS02
+    desc: "create가 기존 파일 덮어쓰지 않음"
+    testable: "이미 존재하는 페르소나 → exit(2) + status='exists'"
+
+  - id: AC-PS03
+    desc: "list가 전체 페르소나 목록 반환"
+    testable: "2개 페르소나 존재 → total=2"
+
+  - id: AC-PS04
+    desc: "delete가 페르소나 파일 삭제"
+    testable: "존재하는 페르소나 삭제 → status='deleted'"
+
+  - id: AC-PS05
+    desc: "delete가 미존재 페르소나 → exit(2)"
+    testable: "없는 페르소나 삭제 → exit(2)"

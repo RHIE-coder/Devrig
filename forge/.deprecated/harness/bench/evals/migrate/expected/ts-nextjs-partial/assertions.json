@@ -1,0 +1,12 @@
+{
+  "analyze": {
+    "stack.language": "typescript",
+    "stack.framework": "nextjs",
+    "files_count_min": 3,
+    "has_tests": false
+  },
+  "scaffold": {
+    "harness_dir_exists": true,
+    "config_mode": "prototype"
+  }
+}

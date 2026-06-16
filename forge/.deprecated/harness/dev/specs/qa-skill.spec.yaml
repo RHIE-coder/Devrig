@@ -1,0 +1,56 @@
+id: SPEC-qa-skill
+name: QA Skill
+version: 1
+layer: quality
+description: >
+  QA Stack 4-Layer (Infra→DB→API→UI) 기반 품질 검증 스킬.
+  sequential_bottom_up/parallel 모드, attribution, mock_guard, coverage trend.
+
+acceptance_criteria:
+  - id: AC-QA01
+    desc: "HARNESS_FEATURE 없으면 stack-runner exit(1)"
+    testable: "HARNESS_FEATURE 미설정 → exit(1)"
+
+  - id: AC-QA02
+    desc: "sequential_bottom_up 모드에서 하위 FAIL → 상위 skip"
+    testable: "infra FAIL → db,api,ui skipped"
+
+  - id: AC-QA03
+    desc: "parallel 모드에서 모든 레이어 실행"
+    testable: "하위 FAIL이어도 상위 레이어 실행"
+
+  - id: AC-QA04
+    desc: "HARNESS_QA_SKIP으로 특정 레이어 스킵"
+    testable: "HARNESS_QA_SKIP=ui → ui 레이어 제외"
+
+  - id: AC-QA05
+    desc: "attribution이 단일 실패 시 pure_{layer}_issue 귀인"
+    testable: "sequential_bottom_up 단일 실패 → pure_infra_issue, confidence=high"
+
+  - id: AC-QA06
+    desc: "attribution이 다중 실패 시 multi_layer 귀인"
+    testable: "2개 이상 레이어 실패 → multi_layer, confidence=low"
+
+  - id: AC-QA07
+    desc: "attribution이 전체 통과 시 all_green 귀인"
+    testable: "실패 없음 → all_green, confidence=high"
+
+  - id: AC-QA08
+    desc: "mock-ratio가 strict_lower_real 위반 시 exit(2)"
+    testable: "상위에서 하위 mock + strict → exit(2)"
+
+  - id: AC-QA09
+    desc: "mock-ratio가 warn 위반 시 exit(0) + 경고"
+    testable: "상위에서 하위 mock + warn → exit(0) + stderr 경고"
+
+  - id: AC-QA10
+    desc: "mock-ratio가 off 정책 시 skip"
+    testable: "policy=off → skipped:true"
+
+  - id: AC-QA11
+    desc: "coverage-trend가 이전 대비 delta 계산"
+    testable: "이전 50%, 현재 75% → delta.percentage=25"
+
+  - id: AC-QA12
+    desc: "coverage-trend가 history 20개 제한 유지"
+    testable: "21개 추가 → history.length=20 (oldest 삭제)"

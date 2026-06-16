@@ -1,0 +1,5 @@
+name: migrate
+description: "기존 프로젝트에 하네스 도입. 분석 → Spec 역추출 → 테스트 생성."
+usage: "/harness:migrate <init|analyze|extract-spec|gen-test>"
+category: workflow
+phase: migrate

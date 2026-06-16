@@ -1,0 +1,10 @@
+---
+description: Test-first development rules
+globs: "src/**/*,lib/**/*"
+---
+
+# Test-First Rules
+
+- 새 기능은 반드시 테스트를 먼저 작성합니다
+- 테스트 없는 코드 변경은 허용되지 않습니다
+- 기존 테스트가 깨지면 즉시 수정합니다

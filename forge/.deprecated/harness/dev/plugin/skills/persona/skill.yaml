@@ -1,0 +1,5 @@
+name: persona
+description: "페르소나 관리. .claude/agents/ 에 도메인 전문가/비즈니스/기술 페르소나를 생성·관리합니다."
+usage: "/harness:persona <create|list|delete> [options]"
+category: config
+phase: any

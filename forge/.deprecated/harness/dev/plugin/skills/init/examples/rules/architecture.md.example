@@ -1,0 +1,10 @@
+---
+description: Architecture decision rules
+globs: "src/**/*"
+---
+
+# Architecture Rules
+
+- 아키텍처 결정은 ADR(Architecture Decision Record)에 기록합니다
+- medium 이상 규모의 변경은 /harness:architect를 먼저 실행합니다
+- SOLID 원칙을 준수합니다

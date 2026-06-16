@@ -1,0 +1,8 @@
+# sysman 실행/셋팅 매니페스트 — toolkit 게이트웨이가 자동 인식합니다.
+name: sysman
+description: OS 상태 모니터링/제어 TUI (포트 점유·프로세스)
+lang: go
+run: go run .
+build: go build -o sysman .
+requires:
+  - go

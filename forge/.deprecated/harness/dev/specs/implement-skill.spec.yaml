@@ -1,0 +1,56 @@
+id: SPEC-implement-skill
+name: Implement Skill
+version: 1
+layer: workflow
+description: >
+  Feature를 TDD로 구현하는 스킬.
+  Spec+Plan 기반, test-first, side-effect 감지, 커버리지 리포트.
+
+acceptance_criteria:
+  - id: AC-IM01
+    desc: "HARNESS_FEATURE 없으면 gate-check exit(1)"
+    testable: "HARNESS_FEATURE 미설정 → exit(1)"
+
+  - id: AC-IM02
+    desc: "Spec 없으면 gate-check exit(2) + G1 안내"
+    testable: "spec 파일 없음 → exit(2) + stderr에 G1"
+
+  - id: AC-IM03
+    desc: "Plan 없으면 gate-check exit(2) + G2 안내"
+    testable: "spec 있고 plan 없음 → exit(2) + stderr에 G2"
+
+  - id: AC-IM04
+    desc: "Spec+Plan 모두 존재 시 gate-check exit(0)"
+    testable: "spec+plan 존재 → exit(0) + stdout JSON에 passed:true"
+
+  - id: AC-IM05
+    desc: "gen-test-skeleton이 Spec의 모든 AC를 테스트 항목으로 생성"
+    testable: "AC 3개 spec → 테스트 골격에 3개 it() 블록"
+
+  - id: AC-IM06
+    desc: "gen-test-skeleton이 기존 테스트 파일 보존"
+    testable: "테스트 파일 이미 존재 → 덮어쓰지 않음"
+
+  - id: AC-IM07
+    desc: "run-tests가 테스트 파일 실행 후 결과 JSON 반환"
+    testable: "통과하는 테스트 → exit(0) + stdout에 passed 수"
+
+  - id: AC-IM08
+    desc: "run-tests 실패 시 exit(2)"
+    testable: "실패하는 테스트 → exit(2) + stdout에 failed 수"
+
+  - id: AC-IM09
+    desc: "check-side-effects가 기존 테스트 깨짐 감지"
+    testable: "기존 테스트 깨짐 → exit(2) + broken 목록"
+
+  - id: AC-IM10
+    desc: "check-side-effects가 현재 feature 테스트 제외"
+    testable: "현재 feature 테스트는 side-effect 검사에서 제외"
+
+  - id: AC-IM11
+    desc: "coverage-report가 AC 커버리지 퍼센트 산출"
+    testable: "3개 AC 중 2개 covered → 66%"
+
+  - id: AC-IM12
+    desc: "coverage-report가 임계값 미달 시 exit(2)"
+    testable: "66% < threshold 100% → exit(2)"

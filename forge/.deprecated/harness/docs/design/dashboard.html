@@ -1,0 +1,2479 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harness Design Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+<style>
+  :root {
+    --bg: #0d1117; --surface: #161b22; --surface2: #21262d;
+    --border: #30363d; --text: #e6edf3; --text2: #8b949e;
+    --accent: #58a6ff; --accent2: #3fb950; --warn: #d29922; --danger: #f85149;
+    --purple: #bc8cff; --pink: #f778ba;
+    --radius: 8px; --gap: 16px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+  /* Header */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 20px 32px; display: flex; align-items: center; gap: 16px; }
+  header h1 { font-size: 20px; font-weight: 600; }
+  header .badge { font-size: 11px; padding: 2px 8px; border-radius: 12px; background: var(--accent); color: var(--bg); font-weight: 600; }
+  header .subtitle { color: var(--text2); font-size: 13px; margin-left: auto; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; overflow-x: auto; }
+  .tab { padding: 12px 20px; font-size: 13px; font-weight: 500; color: var(--text2); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; user-select: none; }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+  /* Content */
+  .content { max-width: 1200px; margin: 0 auto; padding: 32px; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Typography */
+  h2 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+  h3 { font-size: 16px; font-weight: 600; margin: 24px 0 12px; color: var(--accent); }
+  h4 { font-size: 14px; font-weight: 600; margin: 16px 0 8px; }
+  p { color: var(--text2); margin-bottom: 12px; font-size: 14px; }
+  .section-desc { font-size: 15px; color: var(--text2); margin-bottom: 24px; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--gap); margin: 20px 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; transition: border-color 0.2s; }
+  .card:hover { border-color: var(--accent); }
+  .card-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+  .card-label.safety { color: var(--danger); }
+  .card-label.quality { color: var(--accent2); }
+  .card-label.workflow { color: var(--warn); }
+  .card-label.agent { color: var(--purple); }
+  .card-label.knowledge { color: var(--accent); }
+  .card-label.config { color: var(--pink); }
+  .card-title { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+  .card-body { font-size: 13px; color: var(--text2); }
+
+  /* Keyword pills */
+  .keywords { display: flex; flex-wrap: wrap; gap: 10px; margin: 20px 0; }
+  .keyword { background: var(--surface2); border: 1px solid var(--border); border-radius: 20px; padding: 8px 16px; font-size: 13px; }
+  .keyword strong { color: var(--accent); }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 13px; }
+  th { background: var(--surface2); color: var(--text); text-align: left; padding: 10px 14px; font-weight: 600; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid var(--border); color: var(--text2); }
+  tr:hover td { background: rgba(88,166,255,0.04); }
+  td:first-child { color: var(--text); font-weight: 500; }
+
+  /* Insight blocks */
+  .insight { background: linear-gradient(135deg, rgba(88,166,255,0.06), rgba(188,140,255,0.06)); border: 1px solid rgba(88,166,255,0.2); border-radius: var(--radius); margin: 16px 0; overflow: hidden; }
+  .insight-header { padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500; user-select: none; }
+  .insight-header::before { content: ''; width: 6px; height: 6px; border-right: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg); transition: transform 0.2s; flex-shrink: 0; }
+  .insight.open .insight-header::before { transform: rotate(45deg); }
+  .insight-tag { font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(88,166,255,0.15); color: var(--accent); font-weight: 600; }
+  .insight-body { padding: 0 16px 14px; font-size: 13px; color: var(--text2); display: none; border-top: 1px solid rgba(88,166,255,0.1); }
+  .insight.open .insight-body { display: block; padding-top: 12px; }
+
+  /* Mermaid */
+  .diagram { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; margin: 20px 0; overflow-x: auto; }
+  .diagram-title { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; font-weight: 600; }
+  .mermaid { display: flex; justify-content: center; }
+
+  /* Layer stack */
+  .layer-stack { display: flex; flex-direction: column; gap: 2px; margin: 20px 0; }
+  .layer { display: flex; align-items: center; padding: 14px 20px; border-radius: 6px; font-size: 14px; }
+  .layer-num { font-size: 18px; font-weight: 700; width: 36px; flex-shrink: 0; }
+  .layer-name { font-weight: 600; min-width: 140px; }
+  .layer-desc { font-size: 13px; color: var(--text2); margin-left: 12px; }
+  .layer.l-ui { background: rgba(136,136,136,0.1); border: 1px solid rgba(136,136,136,0.2); }
+  .layer.l6 { background: rgba(247,120,186,0.08); border: 1px solid rgba(247,120,186,0.2); }
+  .layer.l5 { background: rgba(210,153,34,0.08); border: 1px solid rgba(210,153,34,0.2); }
+  .layer.l4 { background: rgba(63,185,80,0.08); border: 1px solid rgba(63,185,80,0.2); }
+  .layer.l3 { background: rgba(188,140,255,0.08); border: 1px solid rgba(188,140,255,0.2); }
+  .layer.l2 { background: rgba(88,166,255,0.08); border: 1px solid rgba(88,166,255,0.2); }
+  .layer.l1 { background: rgba(248,81,73,0.08); border: 1px solid rgba(248,81,73,0.2); }
+  .layer.l-platform { background: rgba(136,136,136,0.06); border: 1px solid rgba(136,136,136,0.15); }
+
+  /* Iron Law badges */
+  .iron-law { display: inline-flex; align-items: center; gap: 6px; background: rgba(248,81,73,0.1); border: 1px solid rgba(248,81,73,0.3); border-radius: 6px; padding: 8px 14px; margin: 4px; font-size: 13px; }
+  .iron-law .il-num { font-weight: 700; color: var(--danger); }
+  .iron-laws-grid { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+
+  /* Status badges */
+  .status { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .status.done { background: rgba(63,185,80,0.15); color: var(--accent2); }
+  .status.concerns { background: rgba(210,153,34,0.15); color: var(--warn); }
+  .status.needs { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .status.blocked { background: rgba(248,81,73,0.15); color: var(--danger); }
+
+  /* Code blocks */
+  .code { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.7; overflow-x: auto; margin: 12px 0; white-space: pre; color: var(--text2); }
+
+  /* Comparison */
+  .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); margin: 16px 0; }
+  .comp-col { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+  .comp-col h4 { margin-top: 0; }
+  @media (max-width: 768px) { .comparison { grid-template-columns: 1fr; } .cards { grid-template-columns: 1fr; } }
+
+  /* Divider */
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* Agent model badge */
+  .model-badge { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 700; }
+  .model-badge.haiku { background: rgba(63,185,80,0.15); color: var(--accent2); }
+  .model-badge.sonnet { background: rgba(88,166,255,0.15); color: var(--accent); }
+  .model-badge.opus { background: rgba(188,140,255,0.15); color: var(--purple); }
+
+  /* Flow steps */
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 20px 0; }
+  .flow-step { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; font-size: 13px; font-weight: 500; }
+  .flow-step.highlight { border-color: var(--accent); background: rgba(88,166,255,0.08); }
+  .flow-step.sprint { border-color: var(--accent2); background: rgba(63,185,80,0.08); }
+  .flow-arrow { color: var(--text2); font-size: 16px; }
+
+  /* Tree */
+  .tree { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.8; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin: 16px 0; overflow-x: auto; white-space: pre; }
+  .tree .dir { color: var(--accent); font-weight: 600; }
+  .tree .file { color: var(--text2); }
+  .tree .comment { color: var(--text2); opacity: 0.6; }
+
+  /* ── Hooks Lifecycle Diagram ── */
+  .hook-diagram { position: relative; padding: 32px 0; }
+  .hook-legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 28px; font-size: 12px; }
+  .hook-legend-item { display: flex; align-items: center; gap: 6px; }
+  .hook-legend-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+
+  .hook-flow { display: flex; flex-direction: column; align-items: center; position: relative; }
+
+  /* Row: [side] [main node] [harness annotations] */
+  .hook-row { display: grid; grid-template-columns: 200px 280px 1fr; align-items: start; gap: 0; width: 100%; max-width: 900px; margin: 0 auto; }
+  .hook-row .hook-side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; padding-right: 16px; padding-top: 6px; }
+  .hook-row .hook-main { display: flex; justify-content: center; }
+  .hook-row .hook-harness { display: flex; flex-direction: column; gap: 3px; padding-left: 16px; padding-top: 4px; }
+
+  /* Main flow node */
+  .hnode { padding: 10px 24px; border-radius: 8px; font-size: 13px; font-weight: 600; text-align: center; min-width: 220px; position: relative; border: 2px solid; }
+  .hnode.session-start { background: rgba(63,185,80,0.15); border-color: #3fb950; color: #3fb950; border-radius: 24px; }
+  .hnode.session-end   { background: rgba(136,136,136,0.1); border-color: #6e7681; color: #8b949e; border-radius: 24px; }
+  .hnode.prompt   { background: rgba(210,153,34,0.12); border-color: #d29922; color: #d29922; }
+  .hnode.tool-use { background: rgba(88,166,255,0.1); border-color: #58a6ff; color: #58a6ff; }
+  .hnode.tool-exec{ background: rgba(210,153,34,0.08); border-color: #d29922; color: #d29922; border-style: dashed; }
+  .hnode.perm     { background: rgba(247,227,120,0.08); border-color: #e3b341; color: #e3b341; }
+  .hnode.stop     { background: rgba(248,81,73,0.12); border-color: #f85149; color: #f85149; }
+  .hnode.lifecycle{ background: rgba(136,136,136,0.06); border-color: #484f58; color: #8b949e; }
+
+  /* Vertical arrow between rows */
+  .hook-arrow { display: flex; justify-content: center; width: 100%; max-width: 900px; margin: 0 auto; padding-left: 200px; }
+  .hook-arrow-line { width: 2px; height: 18px; background: #30363d; position: relative; }
+  .hook-arrow-line::after { content:''; position: absolute; bottom: -4px; left: -4px; width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 6px solid #30363d; }
+  .hook-arrow-line.no-arrow::after { display: none; }
+
+  /* Loop-back arrow label */
+  .loop-back { position: absolute; right: -60px; top: 50%; transform: translateY(-50%); font-size: 10px; color: #484f58; writing-mode: vertical-rl; letter-spacing: 1px; border-right: 2px dashed #484f58; padding-right: 6px; height: 80%; }
+
+  /* Nested box (EACH TURN / AGENTIC LOOP) */
+  .hook-box { border: 2px dashed; border-radius: 12px; padding: 20px 12px 12px; margin: 0 auto; width: 100%; max-width: 900px; position: relative; }
+  .hook-box.turn  { border-color: rgba(210,153,34,0.4); background: rgba(210,153,34,0.02); }
+  .hook-box.agent { border-color: rgba(248,81,73,0.3); background: rgba(248,81,73,0.02); margin-top: 4px; }
+  .hook-box-label { position: absolute; top: -10px; left: 20px; background: var(--bg); padding: 0 8px; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+  .hook-box.turn .hook-box-label  { color: #d29922; }
+  .hook-box.agent .hook-box-label { color: #f85149; }
+
+  /* Side hook (dashed, de-emphasized) */
+  .side-hook { font-size: 11px; color: #6e7681; border: 1px dashed #484f58; border-radius: 6px; padding: 3px 10px; white-space: nowrap; }
+  .side-hook span { display: block; font-size: 9px; color: #484f58; }
+
+  /* Harness annotation pill */
+  .hscript { font-size: 11px; font-family: 'SF Mono','Fira Code',monospace; padding: 2px 8px; border-radius: 4px; white-space: nowrap; display: inline-block; }
+  .hscript.safety  { background: rgba(248,81,73,0.12); color: #f85149; border: 1px solid rgba(248,81,73,0.25); }
+  .hscript.gate    { background: rgba(210,153,34,0.12); color: #d29922; border: 1px solid rgba(210,153,34,0.25); }
+  .hscript.quality { background: rgba(63,185,80,0.12); color: #3fb950; border: 1px solid rgba(63,185,80,0.25); }
+  .hscript.state   { background: rgba(88,166,255,0.12); color: #58a6ff; border: 1px solid rgba(88,166,255,0.25); }
+  .hscript.context { background: rgba(188,140,255,0.12); color: #bc8cff; border: 1px solid rgba(188,140,255,0.25); }
+
+  /* Harness coverage indicator */
+  .harness-none { font-size: 10px; color: #484f58; font-style: italic; padding-left: 8px; }
+
+  /* Resumed sessions arc */
+  .resumed-arc { position: absolute; right: -40px; top: 0; bottom: 0; width: 36px; border: 2px dashed #484f58; border-left: none; border-radius: 0 20px 20px 0; }
+  .resumed-arc-label { position: absolute; right: -90px; top: 50%; transform: translateY(-50%) rotate(90deg); font-size: 10px; color: #484f58; white-space: nowrap; letter-spacing: 0.5px; }
+
+  @media (max-width: 900px) {
+    .hook-row { grid-template-columns: 140px 200px 1fr; }
+    .hook-arrow { padding-left: 140px; }
+    .hnode { min-width: 160px; font-size: 12px; padding: 8px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Harness Design</h1>
+  <span class="badge">v0.1</span>
+  <span class="subtitle">Robust &middot; Stable &middot; Reliable &middot; High Quality &middot; Well-engineered &middot; Battle-tested</span>
+</header>
+
+<div class="tabs" id="tabs">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="philosophy">Philosophy</div>
+  <div class="tab" data-tab="architecture">Architecture</div>
+  <div class="tab" data-tab="hooks">Hooks Lifecycle</div>
+  <div class="tab" data-tab="workflow">Workflow</div>
+  <div class="tab" data-tab="agents">Agent System</div>
+  <div class="tab" data-tab="structure">Project Structure</div>
+  <div class="tab" data-tab="cli">CLI Reference</div>
+</div>
+
+<div class="content">
+
+<!-- ═══════════════════════════ OVERVIEW ═══════════════════════════ -->
+<div class="panel active" id="overview">
+  <h2>Overview</h2>
+  <p class="section-desc">높은 수준의 소프트웨어를 체계적으로 만들어내는 에이전틱 엔지니어링 시스템</p>
+
+  <h3>Core Keywords</h3>
+  <div class="keywords">
+    <div class="keyword"><strong>Spec-Driven</strong> &mdash; Spec이 곧 기준. 코드는 blackbox</div>
+    <div class="keyword"><strong>Test-Driven</strong> &mdash; 테스트가 구현보다 먼저</div>
+    <div class="keyword"><strong>Distrust by Structure</strong> &mdash; 구현자 &ne; 검증자</div>
+    <div class="keyword"><strong>Iron Laws</strong> &mdash; 설정으로도 끌 수 없는 절대 규칙</div>
+    <div class="keyword"><strong>3 Modes</strong> &mdash; Standard / Prototype / Explore</div>
+    <div class="keyword"><strong>User Sovereignty</strong> &mdash; 강하게 강제하되 취향은 존중</div>
+  </div>
+
+  <h3>Three Domains</h3>
+  <div class="diagram">
+    <div class="diagram-title">Domain Overview</div>
+    <pre class="mermaid">
+flowchart LR
+  subgraph A["Domain A: Self-Dev"]
+    A1["forge/harness/dev/"] --> A2["bench/"] --> A3["marketplace/"]
+  end
+  subgraph B["Domain B: User Project (Standard Mode)"]
+    B1["/harness:init"] --> B2["/harness:brainstorm"] --> B3["/harness:spec"] --> B4["/harness:architect"]
+    B4 --> B5["/harness:plan"] --> B6["Sprint Loop"]
+    B6 --> B7["/harness:deploy"]
+  end
+  subgraph BP["Domain B: Prototype / Explore"]
+    BP1["Prototype: /harness:init → implement (게이트 생략) → /harness:sync → Standard"]
+    BP2["Explore: /harness:init (mode=explore) → Claude Code QnA"]
+  end
+  subgraph C["Domain C: Migration"]
+    C1["/harness:migrate init"] --> C2["/harness:migrate analyze"] --> C3["/harness:migrate extract-spec"]
+    C3 --> C4["Forward Join"]
+  end
+  style A fill:#21262d,stroke:#f85149,color:#e6edf3
+  style B fill:#21262d,stroke:#58a6ff,color:#e6edf3
+  style BP fill:#21262d,stroke:#bc8cff,color:#e6edf3
+  style C fill:#21262d,stroke:#d29922,color:#e6edf3
+    </pre>
+  </div>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> 3개 프레임워크가 함께 증명한 8가지 명제</div>
+    <div class="insight-body">
+      <strong>agentic-framework-patterns.md &sect;6</strong><br><br>
+      1. LLM에게 프로세스를 강제할 수 있다 (SP 142K&starf;, CE 13.7K&starf;)<br>
+      2. 구현자 &ne; 검증자는 보편 원칙이다 (3/3 수렴)<br>
+      3. 모든 작업에 최고 모델은 낭비다 (3/3 역할별 분배)<br>
+      4. 스킬도 테스트 가능한 코드다<br>
+      5. Controller가 컨텍스트를 큐레이션해야 한다 (자율 탐색 = 0)<br>
+      6. 세션 초기화가 전제조건이다<br>
+      7. 파괴적 작업 차단은 선택이 아니다<br>
+      8. 복잡도는 채택의 적이다 (bkit 4,028TC/485&starf; vs SP 3-Layer/142K&starf;)
+    </div>
+  </div>
+
+  <h3>6-Layer Architecture</h3>
+  <div class="layer-stack">
+    <div class="layer l-ui"><span class="layer-num"></span><span class="layer-name">User Interface</span><span class="layer-desc">/harness:init /harness:brainstorm /harness:spec /harness:architect /harness:plan /harness:implement /harness:review /harness:qa /harness:deploy /harness:refactor ⟲ /harness:sync /harness:migrate</span></div>
+    <div class="layer l6"><span class="layer-num">&#9317;</span><span class="layer-name">Config Layer</span><span class="layer-desc">&#8594; ②~⑤ 조절 가능. ① Safety는 건드릴 수 없음</span></div>
+    <div class="layer l5"><span class="layer-num">&#9316;</span><span class="layer-name">Workflow Layer</span><span class="layer-desc">SDLC 오케스트레이션, 게이트 엔진, Right-Size Ceremony</span></div>
+    <div class="layer l4"><span class="layer-num">&#9315;</span><span class="layer-name">Quality Layer</span><span class="layer-desc">프롬프트 품질, 불신 기반 리뷰, Confidence Calibration</span></div>
+    <div class="layer l3"><span class="layer-num">&#9314;</span><span class="layer-name">Agent Layer</span><span class="layer-desc">역할별 에이전트, 모델 티어링, 에스컬레이션 프로토콜</span></div>
+    <div class="layer l2"><span class="layer-num">&#9313;</span><span class="layer-name">Knowledge Layer</span><span class="layer-desc">지식 복리 축적, Spec&#8596;Test 추적, 문서 커버리지</span></div>
+    <div class="layer l1"><span class="layer-num">&#9312;</span><span class="layer-name">Safety Layer</span><span class="layer-desc">Iron Laws &mdash; Config으로도 비활성화 불가. 모든 레이어보다 우선</span></div>
+    <div class="layer l-platform"><span class="layer-num"></span><span class="layer-name">Claude Code Platform</span><span class="layer-desc">Skills / Agents / Hooks / MCP / Plugins / Worktree</span></div>
+  </div>
+
+  <h3>Spec / Architecture / Test / Plan / Code Relationship</h3>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart TD
+  SPEC["Spec (SoT)&lt;br/&gt;+ acceptance criteria"]
+  ARCH["Architecture&lt;br/&gt;(medium+ 필수 · ADR)"]
+  TEST["Test Strategy&lt;br/&gt;AC → test cases"]
+  PLAN["Plan&lt;br/&gt;step ↔ test 매핑"]
+  CODE["Code (TDD)"]
+
+  SPEC -->|"Right-Size ≥ medium"| ARCH
+  SPEC -->|"AC → test cases"| TEST
+  SPEC -->|"요구사항"| PLAN
+  ARCH -->|"설계 제약"| PLAN
+  TEST -->|"검증 대상"| PLAN
+  PLAN -->|"구현 순서"| CODE
+  CODE -->|"run"| TEST
+  TEST -.->|"Spec 충족 증명"| SPEC
+
+  style SPEC fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+  style ARCH fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+  style TEST fill:#1a3020,stroke:#3fb950,color:#e6edf3
+  style PLAN fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style CODE fill:#21262d,stroke:#8b949e,color:#e6edf3
+    </pre>
+  </div>
+  <p style="font-size:12px;color:var(--text2)">Plan은 Spec + Architecture + Test Strategy를 통합한다. Architecture는 small 규모에서 생략 가능. Code는 TDD — Test 작성 후 구현.</p>
+
+  <h3>세 가지 "설계" 단계 — Spec / Architect / Plan</h3>
+  <p class="section-desc">Spec · Architect · Plan 은 모두 설계지만 <strong>다루는 질문</strong>이 다르다. 섞으면 대부분의 설계 실패가 여기서 시작된다.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label knowledge">Spec</div>
+      <div class="card-title">WHAT — 무엇을 만드는가</div>
+      <div class="card-body"><strong>관점:</strong> 사용자·제품<br>
+      <strong>산출물:</strong> <code>specs/{domain}/{feature}.spec.yaml</code> — AC 리스트<br>
+      <strong>다루지 않는 것:</strong> 기술 스택·DB 스키마·API 경로<br>
+      <strong>게이트:</strong> 모든 AC가 testable<br>
+      <strong>에이전트:</strong> requirements-analyst · test-strategist · devils-advocate<br><br>
+      <em>예:</em> <code>AC-001: 이메일+비밀번호 일치 시 JWT 발급</code></div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">Architect</div>
+      <div class="card-title">HOW (system) — 시스템으로 어떻게</div>
+      <div class="card-body"><strong>관점:</strong> 아키텍처·장기 유지보수<br>
+      <strong>산출물:</strong> <code>decisions/{nnn}-{title}.md</code> — ADR<br>
+      <strong>다루지 않는 것:</strong> 개별 함수·step 분해<br>
+      <strong>게이트:</strong> medium+ 필수 · SOLID/OWASP/유저 선호 반영<br>
+      <strong>에이전트:</strong> architect · reviewer-security<br><br>
+      <em>예:</em> <code>003-auth-strategy.md — JWT(A15m+R7d) 채택, Redis 세션 기각</code></div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">Plan</div>
+      <div class="card-title">HOW (task) — 태스크로 어떻게</div>
+      <div class="card-body"><strong>관점:</strong> 구현자·단기 실행<br>
+      <strong>산출물:</strong> <code>plans/{domain}/{feature}.plan.md</code> — step 리스트<br>
+      <strong>다루지 않는 것:</strong> "왜 필요한가"·"이 패턴이 옳은가"<br>
+      <strong>게이트:</strong> 모든 AC ↔ step 매핑 (coverage.json)<br>
+      <strong>에이전트:</strong> planner · implementer(consumer)<br><br>
+      <em>예:</em> <code>Step 2: bcrypt 검증 + JWT 서명 (AC-001)</code></div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px"><strong>자주 하는 혼동:</strong> Plan에 아키텍처 판단 섞기(ADR 없어 회고·재사용 불가) · Spec에 API 경로 쓰기(Architect 여지 상실) · medium+에서 Architect 건너뛰기(Plan 간 일관성 붕괴) · 세 개를 한 문서에 몰기(리뷰 단위 비대화).</p>
+  <p style="font-size:12px;color:var(--text2)"><strong>한 줄 요약:</strong> Spec은 <em>유저가 만족하는가</em>, Architect는 <em>시스템으로 지속 가능한가</em>, Plan은 <em>실제로 만들어지는가</em> 를 각각 증명한다.</p>
+
+  <h3>Enforcement Mechanism</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label safety">Hook (Token 0)</div>
+      <div class="card-title">결정론적 강제</div>
+      <div class="card-body">Safety: 파괴적 작업 차단 (PreToolUse)<br>Gate: 워크플로우 전제조건 (UserPromptSubmit)<br>Quality: 프롬프트 변환 + 출력 검증 (UserPromptSubmit, PostToolUse)<br>State: 상태 복원 + 갱신 (SessionStart, Stop)<br>Context: 스킬 카탈로그·모드·힌트 주입 (SessionStart)</div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">Skill (LLM)</div>
+      <div class="card-title">오케스트레이션</div>
+      <div class="card-body">단계별 진입점 (/harness:spec, /harness:implement...)<br>에이전트 조합 및 위임<br>단계 완료 조건 검증<br>컨텍스트 큐레이션</div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">Agent (LLM)</div>
+      <div class="card-title">역할별 실행</div>
+      <div class="card-body">전문 역할 (explorer, implementer, reviewer...)<br>모델 티어링 (haiku/sonnet/opus)<br>에스컬레이션 프로토콜<br>4-Status 반환</div>
+    </div>
+  </div>
+
+  <h3>Glossary — 반복 용어</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label workflow">AC</div>
+      <div class="card-title">Acceptance Criteria</div>
+      <div class="card-body">Spec이 "완성됐다"고 선언할 수 있는 <strong>검증 가능한 조건</strong> 목록. Spec↔Test↔Plan↔Code를 연결하는 핵심 ID.<br><br>
+      <strong>4조건:</strong> Testable / Atomic / Binary / User-visible<br>
+      <strong>예:</strong> <code>AC-002: 비밀번호 불일치 시 401 + error='invalid_credentials'</code><br>
+      <strong>추적:</strong> <code>.harness/state/coverage.json</code> &mdash; AC ↔ plan step ↔ test 3자 매핑<br>
+      <strong>게이트:</strong> spec(testable 필드) · plan G2(매핑) · implement G3(test 존재) · qa G4(모든 test PASS)</div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">Right-Size</div>
+      <div class="card-title">규모에 맞는 ceremony</div>
+      <div class="card-body"><strong>작업 규모(small / medium / large)에 따라 프로세스 무게를 조절.</strong> Iron Laws는 규모 무관 영구 강제, 그 외 선택 절차만 차등.<br><br>
+      <strong>판정(3축 AND · 결정론적):</strong> small=AC≤3 ∧ 파일≤4 ∧ LOC≤100 · medium=AC≤7 ∧ 파일≤10 ∧ LOC≤400 · large=그 외<br>
+      <em style="color:var(--text2);font-size:12px">근거: Miller 1956 (3±1 / 7±2), SmartBear 2012 (≤4 files, 400 LOC/h), Rigby & Bird 2013 (PR median ~11 files), Google eng-practices (100/400 LOC).</em><br>
+      <strong>차등:</strong> Architect 필수(medium+) · Review 깊이(light/standard/deep) · QA 테스트 매트릭스(9종 중 Right-Size별 조합)<br>
+      <strong>불변:</strong> Safety · Spec→Test→Plan 순서 · 구현자≠검증자 · QA→Deploy<br>
+      <strong>Mode와 직교:</strong> Mode=게이트 on/off, Right-Size=게이트의 강도<br><br>
+      <em style="color:var(--text2);font-size:12px">→ 전체 임계값 표 · 판정식 · 구현 흐름: <strong>Workflow 탭 § Right-Size Ceremony</strong> (전 9종 테스트 매트릭스 포함)</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">QA Stack</div>
+      <div class="card-title">계층 의존 순차 검증 (Bottom-Up)</div>
+      <div class="card-body">
+        <strong>UI·API·DB·Infra는 의존 스택.</strong> 하위 PASS + 상위 FAIL ⇒ 원인은 <strong>반드시 그 상위 계층</strong>. 하네스가 <strong>실패 귀인</strong>을 자동화.<br><br>
+        <strong>기본 스택:</strong> Infra(L0) → DB(L1) → API(L2) → UI(L3)<br>
+        <strong>모드 (<code>testing.qa_stack.mode</code>):</strong> <code>parallel</code> (기본, 빠름) · <code>sequential_bottom_up</code> (엄격, 자동 귀인) · <code>custom</code><br>
+        <strong>Attribution:</strong> <code>scripts/qa/attribution.mjs</code> → <code>.harness/state/qa-attribution.json</code> &mdash; <code>verdict: pure_{layer}_issue | multi_layer | all_green</code><br>
+        <strong>귀인 신뢰 전제 (<code>mock_guard</code>):</strong> 상위가 하위 mock → 전제 무효. <code>strict_lower_real</code>(기본)=G4 BLOCK · <code>warn</code> · <code>off</code><br>
+        <strong>Right-Size 권고:</strong> small=parallel · medium=상황 적응 · large=<strong>sequential_bottom_up</strong><br>
+        <strong>Audit:</strong> qa_layer_halted · qa_attribution_report · qa_attribution_warning<br>
+        <em style="color:var(--text2);font-size:12px">→ 스택 다이어그램 · 흐름 · 모드 비교: <strong>Workflow 탭 § QA Stack</strong></em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">Mode Auto-Detect</div>
+      <div class="card-title">세션 시작 시 모드 자동 판별 (opt-in)</div>
+      <div class="card-body"><strong><code>config.mode: auto</code> 일 때만 동작.</strong> SessionStart 시점 <code>determine-mode.mjs</code>가 브랜치·스펙·첫 프롬프트 신호로 <strong>1회만</strong> 판별.<br><br>
+      <strong>왜 opt-in:</strong> mode는 게이트 on/off를 좌우 — 오판 시 게이트 조용히 풀림. <code>dangerously-skip-permissions</code>와 유사한 명시적 opt-in.<br>
+      <strong>안전 3규칙:</strong> <code>narrow_only</code> (standard 자동 내림 금지) · <code>promotion_requires_user</code> (승격은 /harness:sync만) · <code>session_start_only</code> (중간 전환 금지)<br>
+      <strong>판정:</strong> RULE-MODE-EXPLORE-001 → RULE-MODE-PROTOTYPE-001 → RULE-MODE-STANDARD-DEFAULT (fallthrough)<br>
+      <strong>기록:</strong> 모든 전환은 audit.jsonl에 <code>mode_auto_detected</code> 이벤트로</div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">Audit Log</div>
+      <div class="card-title">자동 판단의 역추적 장치</div>
+      <div class="card-body"><strong>하네스가 자동으로 내린 모든 판단을 기록.</strong> 저장: <code>.harness/state/audit.jsonl</code> (append-only JSONL).<br><br>
+      <strong>목적:</strong> (1) <em>Audit</em> — 왜 이 모드/크기로 확정됐는가, 왜 게이트 skip됐는가 (2) <em>Debug</em> — 자동 판단 오작동 시 입력 신호·적용 규칙 역추적<br>
+      <strong>이벤트 14종:</strong> mode_auto_detected · right_size_determined · force_size_applied · prompt_transformed · model_tier_escalated · gate_skipped · agent_escalation · qa_invoked · qa_scope_overridden · coverage_evaluated · qa_layer_halted · qa_attribution_report · qa_attribution_warning · <strong>gate_bypassed</strong><br>
+      <strong>스키마:</strong> {ts, session_id, event, decision: {from, to}, signals, rule_id, reversible, source}<br>
+      <strong>불변식:</strong> append-only · flock · PII redact · enabled=false 시 판단은 계속 / 기록만 중단</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ PHILOSOPHY ═══════════════════════════ -->
+<div class="panel" id="philosophy">
+  <h2>Design Philosophy</h2>
+  <p class="section-desc">하네스의 모든 설계 결정은 이 원칙들로부터 도출된다. 3개 프레임워크(Superpowers, bkit, Compound Engineering) 교차 분석에서 도출.</p>
+
+  <h3>10 Design Principles</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label safety">P1</div>
+      <div class="card-title">Safety First</div>
+      <div class="card-body">안전이 먼저, 기능은 그 다음. Safety Layer는 Config으로도 끌 수 없다. 파괴적 작업은 구조적으로 차단.<br><br><em style="color:var(--text2);font-size:12px">SP(Iron Laws) + bkit(Guardrail-as-Code) &mdash; 2/3 수렴</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">P2</div>
+      <div class="card-title">Distrust by Structure</div>
+      <div class="card-body">구현과 검증의 구조적 분리. 같은 에이전트가 두 역할을 맡는 것이 물리적으로 불가능해야 한다.<br><br><em style="color:var(--text2);font-size:12px">SP + bkit + CE &mdash; <strong>3/3 수렴</strong> (가장 강한 패턴)</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label knowledge">P3</div>
+      <div class="card-title">Spec is Source of Truth</div>
+      <div class="card-body">코드는 blackbox, Spec이 기준. Spec이 없으면 Test도, Plan도, Code도 존재 이유가 없다.<br><br><em style="color:var(--text2);font-size:12px">사용자 요구 + CE(R-ID tracing)</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">P4</div>
+      <div class="card-title">Test Before Code</div>
+      <div class="card-body">Spec에서 Test를 먼저 도출. FAIL에서 시작하여 구현으로 PASS. 테스트 유효성도 검증.<br><br><em style="color:var(--text2);font-size:12px">SP(TDD for Everything) &mdash; RED-GREEN-REFACTOR</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">P5</div>
+      <div class="card-title">Controller Curates</div>
+      <div class="card-body">서브에이전트에게 탐색을 시키지 않는다. Controller가 컨텍스트를 구성하여 전달.<br><br><em style="color:var(--text2);font-size:12px">SP + bkit + CE &mdash; <strong>3/3 수렴</strong></em></div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">P6</div>
+      <div class="card-title">Earn, Don't Assume</div>
+      <div class="card-body">자동화는 실적으로 획득. 처음에는 모든 것을 강제하고 확인. 기본값은 항상 "수동 확인".<br><br><em style="color:var(--text2);font-size:12px">bkit(Progressive Automation L0-L4)</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label config">P7</div>
+      <div class="card-title">Token Budget is Real</div>
+      <div class="card-body">Script-First로 65% 절감. 합리화 방어는 Lazy Loading. 프롬프트 비대화 방지.<br><br><em style="color:var(--text2);font-size:12px">CE(Script-First) + SP(7.8x 초과 교훈)</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">P8</div>
+      <div class="card-title">Right-Size Everything</div>
+      <div class="card-body">Iron Laws는 강제 + 절차 수준은 규모에 따라 조절. 작은 작업에 과도한 프로세스 = 마찰.<br><br><em style="color:var(--text2);font-size:12px">CE(Right-Size) vs SP(7-Stage 강제) &mdash; 둘 다 맞음</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">P9</div>
+      <div class="card-title">Escalate, Don't Struggle</div>
+      <div class="card-body">확신 없이 진행하는 것이 가장 위험. 정직한 에스컬레이션 > 불확실한 결과물.<br><br><em style="color:var(--text2);font-size:12px">SP + bkit + CE &mdash; <strong>3/3 수렴</strong></em></div>
+    </div>
+    <div class="card">
+      <div class="card-label knowledge">P10</div>
+      <div class="card-title">Start Simple, Grow Proven</div>
+      <div class="card-body">단순한 구현에서 시작. 복잡도는 필요가 증명된 후에만 추가. 파일 기반 &rarr; 필요 시 FSM.<br><br><em style="color:var(--text2);font-size:12px">bkit(FSM 607함수, 485&starf;) vs SP(Stateless, 142K&starf;)</em></div>
+    </div>
+  </div>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> 수렴 강도: 3/3 수렴 패턴이 가장 강한 설계 근거</div>
+    <div class="insight-body">
+      <strong>agentic-framework-patterns.md &sect;1</strong><br><br>
+      <strong>3/3 수렴 (최강):</strong> C1 불신 기반 리뷰, C3 Controller+Workers, C4 에스컬레이션, C5 스킬 테스트<br>
+      <strong>2/3 수렴:</strong> C7 Session Bootstrap, C8 파괴적 작업 차단, C10 Multi-Platform<br><br>
+      3개 프로젝트가 독립적으로 같은 결론에 도달한 패턴은 "우연이 아닌 필연"이므로 하네스가 반드시 채택해야 하는 기반.
+    </div>
+  </div>
+
+  <h3>7 Iron Laws</h3>
+  <p>Config, 사용자 요청, 어떤 수단으로도 비활성화할 수 없는 규칙.</p>
+  <div class="iron-laws-grid">
+    <div class="iron-law"><span class="il-num">IL-1</span> Spec 없이 Implement 불가</div>
+    <div class="iron-law"><span class="il-num">IL-2</span> Plan 없이 Implement 불가</div>
+    <div class="iron-law"><span class="il-num">IL-3</span> Test 없이 QA 불가</div>
+    <div class="iron-law"><span class="il-num">IL-4</span> QA PASS 없이 Deploy 불가</div>
+    <div class="iron-law"><span class="il-num">IL-5</span> 구현자 &ne; 검증자</div>
+    <div class="iron-law"><span class="il-num">IL-6</span> 파괴적 작업 구조적 차단</div>
+    <div class="iron-law"><span class="il-num">IL-7</span> 빈 문서 금지</div>
+  </div>
+
+  <h3>Tradeoff Decisions</h3>
+  <table>
+    <thead><tr><th>#</th><th>충돌</th><th>하네스 결정</th></tr></thead>
+    <tbody>
+      <tr><td>T1</td><td>프로세스 강제 vs 마찰 감소</td><td>Iron Laws는 강제 + 절차 수준은 Right-Size 조절</td></tr>
+      <tr><td>T2</td><td>토큰 효율 vs 합리화 방어</td><td>Script-First + Hook으로 물리적 차단 (LLM 합리화 기회 제거)</td></tr>
+      <tr><td>T3</td><td>FSM vs Stateless</td><td>파일 기반 Stateless로 시작 &rarr; 필요 증명 시 FSM 점진 도입</td></tr>
+      <tr><td>T4</td><td>Hook 완전 활용 vs 플랫폼 독립</td><td>핵심 5개 Hook 활용 + 나머지 선택적</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> T3 모순 상세: bkit FSM 607함수 vs Stateless의 실제 데이터</div>
+    <div class="insight-body">
+      <strong>agentic-framework-patterns.md &sect;3 M1</strong><br><br>
+      bkit: Declarative FSM (25 transitions + 11 guards + 17 actions = 607 함수) &rarr; 485&starf;<br>
+      SP+CE: Stateless (docs가 곧 상태) &rarr; 142K+13.7K&starf;<br><br>
+      <strong>판정:</strong> CE가 "stateless docs-based도 충분히 작동한다"를 13.7K&starf;로 증명.<br>
+      bkit의 FSM은 정교하지만 복잡도-채택 역설(4,028 TC but 485&starf;).
+    </div>
+  </div>
+
+  <h3>Three Modes — Standard / Prototype / Explore</h3>
+  <table>
+    <thead><tr><th>항목</th><th style="color:var(--accent)">Standard</th><th style="color:var(--warn)">Prototype</th><th style="color:var(--purple)">Explore</th></tr></thead>
+    <tbody>
+      <tr><td>용도</td><td>배포 가능 제품 개발</td><td>빠른 실험 / PoC</td><td>QnA · 학습 · 코드 이해</td></tr>
+      <tr><td>Safety (Iron Laws)</td><td>ON</td><td>ON</td><td>ON</td></tr>
+      <tr><td>Gate (Spec/Plan/Test)</td><td>강제</td><td>deploy 전까지 생략</td><td>OFF</td></tr>
+      <tr><td>Quality pipeline</td><td>ON</td><td>ON (리뷰 완화)</td><td>OFF</td></tr>
+      <tr><td>Test-First</td><td>필수</td><td>선택</td><td>없음</td></tr>
+      <tr><td>오케스트레이션</td><td>전체 SDLC</td><td>implement 바로 가능</td><td>Claude Code 순수 QnA</td></tr>
+      <tr><td>코드 수정 허용</td><td>✓</td><td>✓</td><td>기본 OFF (config)</td></tr>
+      <tr><td>배포 경로</td><td>✓</td><td>/harness:sync → Standard 승격 후</td><td>불가</td></tr>
+      <tr><td>승격 경로</td><td>—</td><td>/harness:sync (역추출 + test 생성)</td><td>mode 변경만</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2)">Standard는 SP(7-Stage) 패턴, Prototype은 CE의 Right-Size 탈출구, Explore는 "LLM에게 물어보기"만 필요한 경우의 오케스트레이션 off 모드.</p>
+
+  <h3>User Sovereignty</h3>
+  <table>
+    <thead><tr><th>영역</th><th>하네스 강제</th><th>유저 자유</th></tr></thead>
+    <tbody>
+      <tr><td>워크플로우</td><td>Spec&rarr;Test&rarr;Plan&rarr;Code 순서</td><td>건너뛸 수 있는 단계</td></tr>
+      <tr><td>코드 구조</td><td>.harness/ 내부</td><td>src/, tests/ 자유</td></tr>
+      <tr><td>디자인 패턴</td><td>없음</td><td>Clean, Hexagonal, 자유</td></tr>
+      <tr><td>에이전트</td><td>기본 역할 제공</td><td>페르소나 생성 자유</td></tr>
+      <tr><td>모델</td><td>역할별 추천</td><td>Config 오버라이드</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════ ARCHITECTURE ═══════════════════════════ -->
+<div class="panel" id="architecture">
+  <h2>Layer Architecture</h2>
+  <p class="section-desc">6-레이어 아키텍처와 강제 메커니즘</p>
+
+  <h3>Feature = Aggregate &mdash; 일관성 경계 사고법</h3>
+  <p class="section-desc">
+    DDD의 <em>Aggregate</em> 어휘를 차용 (코드 프레임워크 도입 X). 하네스의 상태·규칙·불변식의 최소 단위는 <strong>feature</strong> (예: <code>auth/login</code>). 모든 일관성 규칙은 feature 경계 안에서만 즉시 성립하고, 경계 간에는 eventual consistency. 근거: <code>docs/insights/patterns/01-ddd-aggregate-actor.md</code>, <code>05-harness-applicability.md §4.1</code>.
+  </p>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label safety">R1</div>
+      <div class="card-title">단일 진입점</div>
+      <div class="card-body">feature state 변경은 하네스 스크립트를 <strong>단일 지점</strong>으로 통과. 유저·Hook 직접 쓰기 차단 (§7.5 Single Writer).</div>
+    </div>
+    <div class="card">
+      <div class="card-label knowledge">R2</div>
+      <div class="card-title">ID로만 참조</div>
+      <div class="card-body">spec/plan에서 타 feature는 <strong>경로 문자열</strong>로만 참조. 객체·내부 필드 직접 접근 금지. 예: <code>depends_on: [auth/session]</code></div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">R3</div>
+      <div class="card-title">트랜잭션 경계</div>
+      <div class="card-body"><strong>1 skill 호출 = 1 feature mutate</strong>. 여러 feature 걸치면 Saga 패턴 (<code>03-workflow.md §1.3</code> 참조). 이 규칙이 깨지면 설계 흐려짐 신호.</div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">R4</div>
+      <div class="card-title">Eventual Consistency</div>
+      <div class="card-body"><code>coverage.json</code>의 cross-feature 집계·리포트는 <strong>지연 허용</strong>. 실시간 일관성 요구 금지 — 성능 압박 완화 + 회복 가능성 확보.</div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">R5</div>
+      <div class="card-title">작게 유지</div>
+      <div class="card-body">medium 밴드(AC ≤ 7 ∧ 파일 ≤ 10 ∧ LOC ≤ 400) 중 <strong>어느 한 축이라도</strong> 초과 → Right-Size <strong>large</strong> → Architect가 <strong>분할 검토 필수</strong> (<code>split_required</code>). 큰 Aggregate는 동시성 충돌↑.</div>
+    </div>
+  </div>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>디렉토리 매핑:</strong>
+    <code>specs/{d}/{f}.spec.yaml</code> · <code>plans/{d}/{f}.plan.md</code> · <code>decisions/*.md</code> · <code>state/events/{d}/{f}/*.jsonl</code> — 모두 같은 Aggregate를 구성.
+    <strong>한 줄:</strong> <em>"1 skill 호출 = 1 feature mutate = 1 Aggregate 트랜잭션."</em>
+  </p>
+
+  <h3>Layer Rules</h3>
+  <table>
+    <thead><tr><th>규칙</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td>&#9312; Safety는 절대적</td><td>Config으로도 비활성화 불가. 모든 레이어보다 우선 실행</td></tr>
+      <tr><td>상위가 하위를 호출</td><td>Workflow&rarr;Agent&rarr;Knowledge 방향. 역방향 없음</td></tr>
+      <tr><td>&#9317; Config는 &#9313;~&#9316; 조절</td><td>Safety는 건드릴 수 없지만 나머지는 유저 조절 가능</td></tr>
+      <tr><td>Hook &gt; Skill &gt; Agent</td><td>Hook(결정론적) &rarr; Skill(LLM) &rarr; Agent(LLM) 순서</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Intent → Skill Router</h3>
+  <p>유저 프롬프트가 <code>/harness:*</code> 접두어 없이 들어올 수 있다. Router는 SessionStart 및 UserPromptSubmit에서 의도를 감지하여 힌트/자동경로를 제공한다 (강제 X, 유저 확인 O).</p>
+  <table>
+    <thead><tr><th>Path</th><th>감지</th><th>동작</th></tr></thead>
+    <tbody>
+      <tr><td><strong>A. Explicit</strong></td><td>프롬프트에 <code>/harness:xxx</code> 명시</td><td>바로 해당 skill 실행</td></tr>
+      <tr><td><strong>B. Auto</strong></td><td>명확한 동사 + 맥락 (예: "로그인 기능 만들어줘")</td><td>mode 고려 후 경로 제안 → 유저 승인 후 실행</td></tr>
+      <tr><td><strong>C. Router hint</strong></td><td>QnA/탐색성 프롬프트</td><td>힌트만 출력 ("이 작업은 /harness:brainstorm이 어울립니다")</td></tr>
+    </tbody>
+  </table>
+  <div class="diagram">
+    <div class="diagram-title">Mode × Router path</div>
+    <pre class="mermaid">
+flowchart LR
+  P["User Prompt"] --> D{"/harness:xxx&lt;br/&gt;접두어?"}
+  D -->|"YES"| EX["Path A: Explicit&lt;br/&gt;direct dispatch"]
+  D -->|"NO"| M{"현재 Mode?"}
+  M -->|"Standard"| B["Path B: Auto&lt;br/&gt;경로 제안 + 승인"]
+  M -->|"Prototype"| H["Path C: Hint&lt;br/&gt;(게이트 없음)"]
+  M -->|"Explore"| Q["QnA 그대로&lt;br/&gt;오케스트레이션 off"]
+
+  style EX fill:#1a3020,stroke:#3fb950,color:#e6edf3
+  style B fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+  style H fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style Q fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+    </pre>
+  </div>
+
+  <h3>Mode Auto-Detection — 제안은 O, 자동 전환은 X</h3>
+  <p>유저 프롬프트 기반으로 mode를 자동 판별할 수 있는가? <strong>조건부 YES</strong> — 세션 첫 진입(<code>/harness:init</code>)에서만 자동 결정, 이후엔 <strong>제안만</strong>.</p>
+  <table>
+    <thead><tr><th>시점</th><th>동작</th><th>유저 승인</th></tr></thead>
+    <tbody>
+      <tr><td><code>/harness:init</code></td><td>프로젝트 타입 + 대화형 질문으로 초기 mode 결정</td><td>대화 내에서 확정</td></tr>
+      <tr><td>SessionStart (mode 미설정)</td><td>첫 프롬프트 휴리스틱 분석 → 제안 표시</td><td>필수</td></tr>
+      <tr><td>UserPromptSubmit (mismatch)</td><td>경고 + 전환 제안 (additionalContext)</td><td>명시적 config 수정 필요</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2)"><strong>휴리스틱 (결정론적, LLM 비사용)</strong><br>
+  &bull; Explore: "설명해줘", "뭐야", "?", 파일 경로 단독<br>
+  &bull; Prototype: "poc", "빠르게", "일단 만들어", 스펙 미언급 + 구현<br>
+  &bull; Standard: "feature", "배포", spec/plan/test 언급</p>
+  <p style="font-size:12px;color:var(--danger)"><strong>왜 자동 전환이 아닌가:</strong> mode는 gate/quality/orchestration을 모두 바꾼다. 진행 중 워크플로우의 일관성을 해치지 않기 위해 유저 승인 필수.</p>
+
+  <h3>Enforcement Flow: /harness:implement auth/login</h3>
+  <div class="diagram">
+    <div class="diagram-title">Full Execution Flow</div>
+    <pre class="mermaid">
+sequenceDiagram
+  participant U as User
+  participant H as Hook Layer
+  participant S as Skill Layer
+  participant A as Agent Layer
+
+  U->>H: /harness:implement auth/login
+  Note over H: SessionStart: load-state.mjs
+  Note over H: SessionStart: detect-drift.mjs
+  H->>H: gate-engine.mjs (spec? plan?)
+  H->>H: quality-check.mjs (prompt)
+  H-->>S: Gate PASS
+
+  S->>A: explorer (read spec, plan, code)
+  A-->>S: context summary
+  S->>A: test-strategist (test skeleton)
+  A-->>S: tests (all FAIL)
+
+  loop Plan Steps
+    S->>A: implementer (worktree)
+    Note over A: PostToolUse: side-effect check
+    A-->>S: step done + tests PASS
+  end
+
+  S->>A: verifier (full test suite)
+  A-->>S: coverage report
+
+  Note over H: Stop: update-workflow.mjs
+  H-->>U: implement.passed = true
+    </pre>
+  </div>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> Hook 0-Token: 왜 결정론적 검증이 핵심인가</div>
+    <div class="insight-body">
+      <strong>claude-platform-blueprint.md &sect;5 + agentic-framework-patterns.md C8</strong><br><br>
+      Hook command 타입은 토큰 비용이 0이다. LLM을 호출하지 않고 셸 스크립트로 실행.<br>
+      Safety, Gate, Side-effect 검사를 모두 Hook으로 구현하면:<br>
+      &bull; 작업 1회당 ~7,000t 절감 (vs LLM으로 검증 시)<br>
+      &bull; LLM 합리화 불가 (물리적 차단)<br>
+      &bull; 결정론적 (같은 입력 &rarr; 항상 같은 결과)<br><br>
+      SP(Iron Laws)과 bkit(Guardrail-as-Code) 모두 "LLM에게 하지 마라고 쓰는 것"보다 "물리적 차단"이 효과적이라는 것을 증명.
+    </div>
+  </div>
+
+  <h3>Right-Size Ceremony</h3>
+  <p class="section-desc">3축(AC · 파일 수 · LOC) <strong>AND</strong> 결합. 한 축이라도 상위 밴드를 넘으면 상위로 승격. 판정은 결정론적이며 애매한 경우가 없도록 설계.</p>
+  <table>
+    <thead><tr><th>항목</th><th>Small</th><th>Medium</th><th>Large</th></tr></thead>
+    <tbody>
+      <tr><td>AC (인수기준 수)</td><td>&le; 3 <sup>[1]</sup></td><td>&le; 7 <sup>[4]</sup></td><td rowspan="3" style="vertical-align:middle;text-align:center">medium 밴드의<br>어느 축이라도<br>초과<br><strong>→ split_required</strong></td></tr>
+      <tr><td>변경 파일 수</td><td>&le; 4 <sup>[2]</sup></td><td>&le; 10 <sup>[5]</sup></td></tr>
+      <tr><td>변경 LOC (added+changed)</td><td>&le; 100 <sup>[3]</sup></td><td>&le; 400 <sup>[6]</sup></td></tr>
+      <tr><td>Brainstorm</td><td>생략</td><td>생략</td><td>권장</td></tr>
+      <tr><td>Architect</td><td>생략</td><td>필수</td><td>필수 + 분할 검토</td></tr>
+      <tr><td>Review</td><td>Light (1 reviewer)</td><td>Standard (2-3)</td><td>Deep (4 병렬)</td></tr>
+      <tr><td>QA 테스트 매트릭스</td><td>Unit · Sanity · Smoke</td><td>+ Integration · Regression</td><td>+ E2E · Load · Stress · Recovery</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>근거:</strong>
+    <sup>[1][4]</sup> Miller 1956 <em>The Magical Number Seven</em> — working memory 3±1 하한 / 7±2 상한.
+    <sup>[2][6]</sup> SmartBear 2012 Cisco 인스펙션 10,000건 — 결함 검출률 ≤4 파일에서 피크, 400 LOC/h 이상에서 급락.
+    <sup>[3][6]</sup> Google eng-practices — "small PR" ≤100 LOC, medium cutoff 400 LOC.
+    <sup>[5]</sup> Rigby &amp; Bird 2013 — MS + OSS PR 파일수 중앙값 ~11.
+  </p>
+  <p style="font-size:12px;color:var(--text2)">
+    <strong>판정식:</strong> <code>small if AC≤3 ∧ files≤4 ∧ LOC≤100 · medium elif AC≤7 ∧ files≤10 ∧ LOC≤400 · else large</code>.
+    <strong>갭(명시):</strong> LOC 언어 의존성(<code>loc_multiplier</code>로 보정) · cyclomatic/보안 도메인은 판정식 밖 (Architect가 <strong>상향만</strong> override) · AI agent 생성 맥락 피로 곡선 다름 (follow-up 튜닝).
+  </p>
+
+  <h4 style="margin-top:20px">구현 흐름 &mdash; <code>scripts/workflow/determine-size.mjs</code></h4>
+  <div class="diagram">
+    <div class="diagram-title">Right-Size 결정 파이프라인 (skill 진입 시점마다 실행)</div>
+    <pre class="mermaid">
+flowchart TD
+  TRIG["skill 진입&lt;br/&gt;(spec/plan/implement/qa)"] --> IN["입력 수집"]
+  IN --> AC["AC_count&lt;br/&gt;spec.yaml&lt;br/&gt;acceptance_criteria[]"]
+  IN --> FILES["files_count&lt;br/&gt;plan.files_changed&lt;br/&gt;or git diff --name-only"]
+  IN --> LOC["loc_delta&lt;br/&gt;git diff --numstat&lt;br/&gt;(added+changed) − loc_exclude"]
+  AC --> EVAL["3축 평가&lt;br/&gt;(AND)"]
+  FILES --> EVAL
+  LOC --> EVAL
+  EVAL --> Q1{"AC≤3 ∧&lt;br/&gt;files≤4 ∧&lt;br/&gt;LOC≤100 ?"}
+  Q1 -->|"Yes"| SMALL["size = small"]
+  Q1 -->|"No"| Q2{"AC≤7 ∧&lt;br/&gt;files≤10 ∧&lt;br/&gt;LOC≤400 ?"}
+  Q2 -->|"Yes"| MED["size = medium"]
+  Q2 -->|"No"| LARGE["size = large&lt;br/&gt;split_required=true"]
+  SMALL --> ARCH{"Architect&lt;br/&gt;force_size&lt;br/&gt;(upward_only)?"}
+  MED --> ARCH
+  LARGE --> ARCH
+  ARCH -->|"미적용"| APPLY
+  ARCH -->|"상향 지정"| OVR["force_size 적용&lt;br/&gt;(medium|large만)"]
+  OVR --> EMIT_F["audit emit:&lt;br/&gt;force_size_applied"]
+  EMIT_F --> APPLY["workflow.json&lt;br/&gt;right_size 갱신"]
+  APPLY --> EMIT["audit emit:&lt;br/&gt;right_size_determined&lt;br/&gt;{signals, rule, decision}"]
+  EMIT --> CEREMONY["ceremony 적용:&lt;br/&gt;Architect/Review/QA 매트릭스"]
+
+  style TRIG fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+  style SMALL fill:#1a3020,stroke:#3fb950,color:#e6edf3
+  style MED fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style LARGE fill:#30201a,stroke:#f85149,color:#e6edf3
+  style EMIT fill:#1a2030,stroke:#8b949e,color:#e6edf3
+  style EMIT_F fill:#1a2030,stroke:#8b949e,color:#e6edf3
+  style CEREMONY fill:#2a1a30,stroke:#a371f7,color:#e6edf3
+    </pre>
+  </div>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>결정론 보장:</strong> 같은 (AC, files, LOC) 입력 → 항상 같은 size. 판정 근거는 모두 <code>audit.jsonl</code> 에 <code>right_size_determined</code> 이벤트로 기록되어 사후 검증 가능.
+    <strong>구현 파일:</strong> <code>scripts/workflow/determine-size.mjs</code> · <code>scripts/state/audit-append.mjs</code> · <code>state/workflow.json</code>.
+  </p>
+
+  <h3>Parallel Execution Strategy</h3>
+  <div class="diagram">
+    <div class="diagram-title">Worktree Auto-Branching</div>
+    <pre class="mermaid">
+flowchart TD
+  PLAN["Plan 의존성 분석"] --> DEP{"의존성?"}
+  DEP -->|"순차"| SEQ["implementer-1&lt;br/&gt;Step 1 → Step 2"]
+  DEP -->|"독립"| PAR1["worktree-A&lt;br/&gt;implementer-2 → Step 3"]
+  DEP -->|"독립"| PAR2["worktree-B&lt;br/&gt;implementer-3 → Step 4"]
+  SEQ --> MERGE["Merge + Full Test Suite"]
+  PAR1 --> MERGE
+  PAR2 --> MERGE
+  MERGE --> CHECK{"Side-effect?"}
+  CHECK -->|"None"| DONE["Complete"]
+  CHECK -->|"Found"| FIX["Resolve + Retest"]
+
+  style PLAN fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+  style MERGE fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style DONE fill:#1a3020,stroke:#3fb950,color:#e6edf3
+    </pre>
+  </div>
+
+  <h3>Token / Context Window Budget</h3>
+  <div class="comparison">
+    <div class="comp-col">
+      <h4>Session Startup (~8,000t / 200K)</h4>
+      <table>
+        <tr><td>System prompt</td><td style="text-align:right">~4,200t</td></tr>
+        <tr><td>CLAUDE.md (유저 소유, optional)</td><td style="text-align:right">~1,800t</td></tr>
+        <tr><td>Auto memory</td><td style="text-align:right">~680t</td></tr>
+        <tr><td>Skill descriptions (10)</td><td style="text-align:right">~1,000t</td></tr>
+        <tr><td>SessionStart context inject</td><td style="text-align:right">~1,800t</td></tr>
+      </table>
+    </div>
+    <div class="comp-col">
+      <h4>/harness:implement Call (~7,000t)</h4>
+      <table>
+        <tr><td>Skill 본문</td><td style="text-align:right">~3,000t</td></tr>
+        <tr><td>Gate check</td><td style="text-align:right;color:var(--accent2)"><strong>0t</strong> (Hook)</td></tr>
+        <tr><td>Config 읽기</td><td style="text-align:right">~500t</td></tr>
+        <tr><td>Subagents (4종)</td><td style="text-align:right">~2,000t</td></tr>
+        <tr><td>Side-effect check</td><td style="text-align:right;color:var(--accent2)"><strong>0t</strong> (Hook)</td></tr>
+      </table>
+      <p style="margin-top:12px"><strong>총 고정 비용: ~15,000t = 7.5%</strong></p>
+    </div>
+  </div>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> Script-First 65% 절감의 정량적 근거</div>
+    <div class="insight-body">
+      <strong>agentic-framework-patterns.md &sect;2 (CE Only) + claude-platform-blueprint.md &sect;14</strong><br><br>
+      CE의 Script-First 패턴: 복잡한 로직을 scripts/로 위임하면 토큰 65% 절감.<br>
+      SP의 교훈: 합리화 방어를 프롬프트에 넣으면 200단어 기준을 7.8배 초과 (brainstorming 1,553w).<br><br>
+      하네스 해결: Script-First(토큰 0) + Hook(물리적 차단) = 합리화 방어 + 토큰 효율 양립.
+    </div>
+  </div>
+
+  <h3>② Knowledge Layer &mdash; 구현 상세</h3>
+  <p class="section-desc">지식 축적 &rarr; 검색 &rarr; 재투입 &rarr; 정리. 해결된 문제를 구조화하여 다음 plan에 주입, 같은 실수 반복 방지.</p>
+  <table>
+    <thead><tr><th>스크립트</th><th>역할</th><th>호출 시점</th></tr></thead>
+    <tbody>
+      <tr><td><code>record-solution.mjs</code></td><td>해결된 문제를 <code>.harness/knowledge/solutions/{domain}/{slug}.md</code> 에 기록 (YAML frontmatter + 구조화 본문)</td><td>QA 재시도 성공 후 자동 / 유저 수동</td></tr>
+      <tr><td><code>query-solutions.mjs</code></td><td>domain + keyword 검색 &rarr; 상위 3건 plan 컨텍스트 주입. <code>last_referenced</code> / <code>ref_count</code> 자동 갱신</td><td><code>/harness:plan</code> 진입 시</td></tr>
+      <tr><td><code>prune-stale.mjs</code></td><td><code>ref_count == 0 &amp;&amp; created &gt; 90일</code> 솔루션 후보 제시 (자동 삭제 아님 &mdash; User Sovereignty)</td><td><code>/harness:sync</code> 엔트로피 스윕</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>솔루션 파일:</strong> YAML frontmatter(<code>id</code>, <code>domain</code>, <code>related_specs</code>, <code>related_acs</code>, <code>tags</code>, <code>ref_count</code>) + 본문(문제 &rarr; 해결 &rarr; 근거 &rarr; 교훈). 주입 token budget: <code>config.knowledge.max_inject_tokens</code> (기본 800).
+  </p>
+
+  <h3>Compact Defense</h3>
+  <table>
+    <thead><tr><th>항목</th><th>Compact 후</th><th>방어</th></tr></thead>
+    <tbody>
+      <tr><td>.harness/state/</td><td style="color:var(--accent2)">디스크 존재</td><td>SessionStart hook 재로드</td></tr>
+      <tr><td>Skill descriptions</td><td style="color:var(--warn)">미호출 스킬 소실</td><td>SessionStart hook 카탈로그 주입 (<code>session-start-context.mjs</code>)</td></tr>
+      <tr><td>에이전트 컨텍스트</td><td style="color:var(--accent2)">별도 윈도우</td><td>Compact 영향 없음</td></tr>
+      <tr><td>Config</td><td style="color:var(--accent2)">디스크 존재</td><td>재로드 복원</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ═══════════════════════════ HOOKS LIFECYCLE ═══════════════════════════ -->
+<div class="panel" id="hooks">
+  <h2>Claude Code Hooks Lifecycle</h2>
+  <p class="section-desc">Claude Code의 전체 Hook 이벤트 흐름과 하네스 프레임워크의 개입 지점. 왼쪽 = 비동기/사이드 이벤트, 중앙 = 메인 세션 흐름, 오른쪽 = 하네스가 등록한 스크립트.</p>
+
+  <div class="hook-legend">
+    <div class="hook-legend-item"><div class="hook-legend-swatch" style="background:#3fb950"></div> Session 경계</div>
+    <div class="hook-legend-item"><div class="hook-legend-swatch" style="background:#d29922"></div> Turn 루프</div>
+    <div class="hook-legend-item"><div class="hook-legend-swatch" style="background:#58a6ff"></div> Tool 사용</div>
+    <div class="hook-legend-item"><div class="hook-legend-swatch" style="background:#e3b341"></div> 권한 / MCP</div>
+    <div class="hook-legend-item"><div class="hook-legend-swatch" style="background:#f85149"></div> 중단</div>
+    <div class="hook-legend-item"><div class="hook-legend-swatch" style="background:#6e7681"></div> Lifecycle / Async</div>
+    <div class="hook-legend-item" style="margin-left: 16px; border-left: 1px solid var(--border); padding-left: 16px">
+      <div class="hscript safety" style="font-size:10px">Safety</div>
+      <div class="hscript gate" style="font-size:10px">Gate</div>
+      <div class="hscript quality" style="font-size:10px">Quality</div>
+      <div class="hscript state" style="font-size:10px">State</div>
+      <div class="hscript context" style="font-size:10px">Context</div>
+      &nbsp; Harness 스크립트 분류
+    </div>
+  </div>
+
+  <div class="hook-diagram">
+    <div class="hook-flow">
+
+      <!-- ──────── SESSION START ──────── -->
+      <div class="hook-row">
+        <div class="hook-side"></div>
+        <div class="hook-main"><div class="hnode session-start">Session Start</div></div>
+        <div class="hook-harness">
+          <div class="hscript state">state/load-state.mjs</div>
+          <div class="hscript context">hooks/session-start-context.mjs</div>
+          <div class="hscript context">workflow/determine-mode.mjs <span style="opacity:0.6">(mode=auto)</span></div>
+          <div class="hscript state">state/compact-recovery.mjs <span style="opacity:0.6">(compact 감지)</span></div>
+          <div class="hscript context">state/route-hint.mjs</div>
+        </div>
+      </div>
+
+      <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+      <!-- ═══════ EACH TURN BOX ═══════ -->
+      <div class="hook-box turn" style="position: relative;">
+        <div class="hook-box-label">Each Turn</div>
+
+        <!-- UserPromptSubmit -->
+        <div class="hook-row">
+          <div class="hook-side"></div>
+          <div class="hook-main"><div class="hnode prompt">UserPromptSubmit</div></div>
+          <div class="hook-harness">
+            <div class="hscript gate">gates/gate-engine.mjs</div>
+            <div class="hscript quality">prompt/quality-check.mjs</div>
+            <div class="hscript quality">prompt/auto-transform.mjs <span style="opacity:0.6">(opt-in)</span></div>
+          </div>
+        </div>
+
+        <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+        <!-- ═══════ AGENTIC LOOP BOX ═══════ -->
+        <div class="hook-box agent" style="position: relative;">
+          <div class="hook-box-label">Agentic Loop</div>
+
+          <!-- PreToolUse -->
+          <div class="hook-row">
+            <div class="hook-side">
+              <div class="side-hook">Permission Denied<span>auto-mode deny</span></div>
+            </div>
+            <div class="hook-main"><div class="hnode tool-use">PreToolUse</div></div>
+            <div class="hook-harness">
+              <div class="hscript safety">guardrails/block-destructive.mjs <span style="opacity:0.6">(Bash)</span></div>
+              <div class="hscript safety">guardrails/block-force-push.mjs <span style="opacity:0.6">(Bash)</span></div>
+              <div class="hscript safety">guardrails/protect-harness.mjs <span style="opacity:0.6">(Edit|Write)</span></div>
+            </div>
+          </div>
+
+          <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+          <!-- PermissionRequest -->
+          <div class="hook-row">
+            <div class="hook-side">
+              <div class="side-hook">Elicitation<span>MCP input</span></div>
+            </div>
+            <div class="hook-main"><div class="hnode perm">PermissionRequest</div></div>
+            <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+          </div>
+
+          <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+          <!-- [tool executes] -->
+          <div class="hook-row">
+            <div class="hook-side">
+              <div class="side-hook">ElicitationResult<span>MCP input</span></div>
+            </div>
+            <div class="hook-main"><div class="hnode tool-exec">[tool executes]</div></div>
+            <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+          </div>
+
+          <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+          <!-- PostToolUse -->
+          <div class="hook-row">
+            <div class="hook-side"></div>
+            <div class="hook-main"><div class="hnode tool-use">PostToolUse / PostToolUseFailure</div></div>
+            <div class="hook-harness">
+              <div class="hscript safety">guardrails/track-bash-files.mjs <span style="opacity:0.6">(Bash)</span></div>
+              <div class="hscript quality">validators/check-side-effects.mjs <span style="opacity:0.6">(Edit|Write)</span></div>
+            </div>
+          </div>
+
+          <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+          <!-- SubagentStart / SubagentStop -->
+          <div class="hook-row">
+            <div class="hook-side"></div>
+            <div class="hook-main"><div class="hnode tool-use">SubagentStart / SubagentStop</div></div>
+            <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+          </div>
+
+          <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+          <!-- TaskCreated -->
+          <div class="hook-row">
+            <div class="hook-side"></div>
+            <div class="hook-main"><div class="hnode perm">TaskCreated</div></div>
+            <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+          </div>
+
+          <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+          <!-- TaskCompleted -->
+          <div class="hook-row">
+            <div class="hook-side"></div>
+            <div class="hook-main"><div class="hnode perm">TaskCompleted</div></div>
+            <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+          </div>
+
+        </div><!-- /AGENTIC LOOP -->
+
+      </div><!-- /EACH TURN -->
+
+      <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+      <!-- ──────── Notification (Async) ──────── -->
+
+      <!-- ──────── STOP ──────── -->
+      <div class="hook-row">
+        <div class="hook-side">
+          <div class="side-hook">Notification<span>Async</span></div>
+        </div>
+        <div class="hook-main"><div class="hnode stop">Stop / StopFailure</div></div>
+        <div class="hook-harness">
+          <div class="hscript state">state/update-workflow.mjs</div>
+        </div>
+      </div>
+
+      <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+      <!-- ──────── TeammateIdle ──────── -->
+      <div class="hook-row">
+        <div class="hook-side">
+          <div class="side-hook">ConfigChange<span>Async</span></div>
+        </div>
+        <div class="hook-main"><div class="hnode lifecycle">TeammateIdle</div></div>
+        <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+      </div>
+
+      <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+      <!-- ──────── PreCompact ──────── -->
+      <div class="hook-row">
+        <div class="hook-side">
+          <div class="side-hook">WorktreeCreate<span>Setup</span></div>
+          <div class="side-hook">WorktreeRemove<span>Teardown</span></div>
+        </div>
+        <div class="hook-main"><div class="hnode lifecycle">PreCompact</div></div>
+        <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+      </div>
+
+      <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+      <!-- ──────── PostCompact ──────── -->
+      <div class="hook-row">
+        <div class="hook-side">
+          <div class="side-hook">CwdChanged / FileChanged<span>Env reactive</span></div>
+        </div>
+        <div class="hook-main"><div class="hnode lifecycle">PostCompact</div></div>
+        <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+      </div>
+
+      <div class="hook-arrow"><div class="hook-arrow-line"></div></div>
+
+      <!-- ──────── SessionEnd ──────── -->
+      <div class="hook-row">
+        <div class="hook-side">
+          <div class="side-hook">InstructionsLoaded<span>Async</span></div>
+        </div>
+        <div class="hook-main"><div class="hnode session-end">SessionEnd</div></div>
+        <div class="hook-harness"><span class="harness-none">&mdash;</span></div>
+      </div>
+
+    </div><!-- /hook-flow -->
+  </div><!-- /hook-diagram -->
+
+  <hr>
+
+  <h3>Harness Hook Coverage Summary</h3>
+  <p class="section-desc">Claude Code가 제공하는 전체 Hook 이벤트 중 하네스가 실제 개입하는 지점 요약</p>
+  <table>
+    <thead>
+      <tr><th>Hook 이벤트</th><th>하네스 개입</th><th>스크립트</th><th>분류</th><th>역할</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>SessionStart</td><td style="color:#3fb950">&#10004; 5개</td>
+        <td style="font-family:monospace;font-size:12px">load-state &middot; session-start-context &middot; determine-mode &middot; compact-recovery &middot; route-hint</td>
+        <td><span class="hscript state" style="font-size:10px">State</span> <span class="hscript context" style="font-size:10px">Context</span></td>
+        <td>워크플로우 상태 복원 + 스킬 카탈로그 주입 + 모드 결정 + compact 복구 + 라우터 힌트</td>
+      </tr>
+      <tr>
+        <td>UserPromptSubmit</td><td style="color:#3fb950">&#10004; 3개</td>
+        <td style="font-family:monospace;font-size:12px">gate-engine &middot; quality-check &middot; auto-transform</td>
+        <td><span class="hscript gate" style="font-size:10px">Gate</span> <span class="hscript quality" style="font-size:10px">Quality</span></td>
+        <td>게이트 전제조건 검증 + 프롬프트 품질 검사 + 자동변환</td>
+      </tr>
+      <tr>
+        <td>PreToolUse (Bash)</td><td style="color:#3fb950">&#10004; 2개</td>
+        <td style="font-family:monospace;font-size:12px">block-destructive &middot; block-force-push</td>
+        <td><span class="hscript safety" style="font-size:10px">Safety</span></td>
+        <td>파괴적 bash 커맨드 / force-push 결정론적 차단</td>
+      </tr>
+      <tr>
+        <td>PreToolUse (Edit|Write)</td><td style="color:#3fb950">&#10004; 1개</td>
+        <td style="font-family:monospace;font-size:12px">protect-harness</td>
+        <td><span class="hscript safety" style="font-size:10px">Safety</span></td>
+        <td>.harness/state/ 직접 수정 차단 (하네스 스크립트만 가능)</td>
+      </tr>
+      <tr>
+        <td>PostToolUse (Bash)</td><td style="color:#3fb950">&#10004; 1개</td>
+        <td style="font-family:monospace;font-size:12px">track-bash-files</td>
+        <td><span class="hscript safety" style="font-size:10px">Safety</span></td>
+        <td>Bash로 파일 생성/수정 시 감지 → 경고</td>
+      </tr>
+      <tr>
+        <td>PostToolUse (Edit|Write)</td><td style="color:#3fb950">&#10004; 1개</td>
+        <td style="font-family:monospace;font-size:12px">check-side-effects</td>
+        <td><span class="hscript quality" style="font-size:10px">Quality</span></td>
+        <td>코드 변경 후 기존 test 깨짐 감지</td>
+      </tr>
+      <tr>
+        <td>(공용 emitter)</td><td style="color:#3fb950">&#10004; 1개</td>
+        <td style="font-family:monospace;font-size:12px">audit-append</td>
+        <td><span class="hscript state" style="font-size:10px">State</span></td>
+        <td>Hook + Workflow Layer 가 호출하는 cross-cutting 감사 기록기</td>
+      </tr>
+      <tr>
+        <td>Stop</td><td style="color:#3fb950">&#10004; 1개</td>
+        <td style="font-family:monospace;font-size:12px">update-workflow</td>
+        <td><span class="hscript state" style="font-size:10px">State</span></td>
+        <td>스킬 완료 시 phase/gates_passed 갱신</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>PermissionRequest</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>Claude Code 내장 처리 (하네스 미개입)</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>SubagentStart / Stop</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>Claude Code 내장 처리</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>TaskCreated / Completed</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>Claude Code 내장 처리</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>Notification</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>비동기 알림 (확장 예비)</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>TeammateIdle</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>팀메이트 대기 감지 (확장 예비)</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>Pre/PostCompact</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>compact 전후 — compact-recovery가 SessionStart에서 후처리</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>WorktreeCreate / Remove</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>worktree 생명주기 (확장 예비)</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>CwdChanged / FileChanged</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>파일 시스템 변화 반응 (확장 예비)</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>InstructionsLoaded</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>CLAUDE.md 로드 이벤트</td>
+      </tr>
+      <tr style="opacity:0.5">
+        <td>SessionEnd</td><td style="color:#6e7681">&mdash;</td><td>&mdash;</td><td></td><td>세션 종료 (확장 예비)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div style="display: flex; gap: 20px; margin-top: 24px;">
+    <div class="card" style="flex:1">
+      <div class="card-label safety">설계 원칙</div>
+      <div class="card-title">Hook &gt; Skill &gt; Agent</div>
+      <div class="card-body">결정론적 Hook이 먼저, LLM 기반 Skill/Agent가 나중. Hook은 토큰 비용 0, exit code로만 통신. 모든 guardrail 스크립트는 순수 JS/Node.js &mdash; LLM 판단에 의존하지 않음.</div>
+    </div>
+    <div class="card" style="flex:1">
+      <div class="card-label workflow">커버리지</div>
+      <div class="card-title">7개 Hook 이벤트 (15개 스크립트)</div>
+      <div class="card-body">하네스는 <strong>Safety(4) + Gate(1) + Quality(2) + State(5) + Context(3)</strong> 로 핵심 7개 이벤트 + 공용 emitter에 정밀 개입. 나머지는 Claude Code 내장 처리에 위임하거나 확장 예비.</div>
+    </div>
+    <div class="card" style="flex:1">
+      <div class="card-label knowledge">참조</div>
+      <div class="card-title">관련 문서</div>
+      <div class="card-body">
+        <code>02-architecture.md</code> &mdash; Layer 규칙, Guardrail 상세<br>
+        <code>06-cli-reference.md §5.3</code> &mdash; 호출 시점 매트릭스<br>
+        <code>01-philosophy.md</code> &mdash; Script-First 원칙
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ WORKFLOW ═══════════════════════════ -->
+<div class="panel" id="workflow">
+  <h2>Workflow</h2>
+  <p class="section-desc">세 가지 도메인의 워크플로우, 게이트, Sprint 루프</p>
+
+  <h3>End-to-End &mdash; 전체 워크플로우 한눈에 보기</h3>
+  <p class="section-desc">
+    유저 프롬프트가 들어와 배포까지 가는 전 구간을 한 장으로. <strong>세 mode</strong>의 분기, <strong>Standard 8단계</strong> + <strong>G1&ndash;G4 게이트</strong>, <strong>Sprint 루프</strong>(implement&rarr;review&rarr;qa), <strong>Hook Layer</strong>(0-token, 전 구간 강제), <strong>Right-Size</strong>(ceremony/매트릭스 조절), <strong>State Artifacts</strong>(SoT), 그리고 <strong>/sync &middot; /migrate</strong> 재진입 경로까지. 세부는 아래 섹션에서.
+  </p>
+  <div class="diagram">
+    <div class="diagram-title">Harness Workflow &mdash; Full View</div>
+    <pre class="mermaid">
+flowchart TB
+  USER(["User Prompt"]) --> ROUTER{"Router&lt;br/&gt;(intent → skill)"}
+  ROUTER --> MODEC{"Mode"}
+
+  MODEC -->|"Explore"| EXP["Claude Code QnA&lt;br/&gt;(orchestration OFF)"]
+  MODEC -->|"Prototype"| PROTO["/harness:init → implement&lt;br/&gt;(gates 생략)"]
+  MODEC -->|"Standard"| PIPE
+
+  subgraph PIPE["Standard Pipeline (Domain B)"]
+    direction LR
+    INIT["/init"] --> BRN["/brainstorm&lt;br/&gt;(large 권장)"] --> SPEC["/spec&lt;br/&gt;AC 도출"]
+    SPEC -->|"G1"| ARCH["/architect&lt;br/&gt;ADR (medium+ 필수)"]
+    ARCH --> TS["Test Strategy&lt;br/&gt;AC → test cases"]
+    TS -->|"G2"| PLAN["/plan&lt;br/&gt;step ↔ test 매핑"]
+    PLAN -->|"G3"| SPRINT
+    subgraph SPRINT["Sprint Loop (Phase 6)"]
+      direction LR
+      IMP["/implement&lt;br/&gt;worktree · TDD"] --> REV["/review&lt;br/&gt;구현자 ≠ 검증자"] --> QA["/qa&lt;br/&gt;9종 · stack attribution"]
+      QA -->|"FAIL"| IMP
+      REV -->|"NEEDS_CHANGE"| IMP
+    end
+    SPRINT -->|"G4"| DEP["/deploy"]
+  end
+
+  SPEC -. "3축 결정" .-> RS[["Right-Size&lt;br/&gt;S · M · L"]]
+  RS -. "ceremony" .-> ARCH
+  RS -. "테스트 매트릭스" .-> QA
+
+  HOOKS[["Hook Layer (0-token · deterministic)&lt;br/&gt;SessionStart · UserPromptSubmit · PreToolUse · PostToolUse · Stop&lt;br/&gt;= Safety · Gate · Sync · Side-effect · State"]]
+  HOOKS -. "전 구간 강제" .-> PIPE
+
+  PIPE --> STATE[("State Artifacts (SoT)&lt;br/&gt;specs/ · decisions/ · plans/ · tests/ · src/&lt;br/&gt;.harness/state/: workflow · coverage · audit · qa-attribution")]
+
+  PROTO -.->|"/harness:sync&lt;br/&gt;(역추출 + test 생성)"| SPEC
+  MIG["/harness:migrate&lt;br/&gt;(Domain C)&lt;br/&gt;legacy → spec"] -.->|"Forward Join"| SPEC
+
+  style USER fill:#161b22,stroke:#58a6ff,color:#e6edf3
+  style ROUTER fill:#161b22,stroke:#8b949e,color:#e6edf3
+  style MODEC fill:#161b22,stroke:#8b949e,color:#e6edf3
+  style PIPE fill:#21262d,stroke:#58a6ff,color:#e6edf3
+  style SPRINT fill:#1a3020,stroke:#3fb950,color:#e6edf3
+  style EXP fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+  style PROTO fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style MIG fill:#30201a,stroke:#d29922,color:#e6edf3
+  style HOOKS fill:#30201a,stroke:#f85149,color:#e6edf3
+  style RS fill:#2a2030,stroke:#bc8cff,color:#e6edf3
+  style STATE fill:#1a2030,stroke:#8b949e,color:#e6edf3
+  style DEP fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style SPEC fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+  style PLAN fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style ARCH fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+    </pre>
+  </div>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>읽는 법:</strong>
+    <span style="color:var(--accent)">파란 테두리 Pipeline</span> = Standard 본류 &middot;
+    <span style="color:var(--accent2)">초록 Sprint Loop</span> = Phase 6 반복 구간 &middot;
+    <span style="color:var(--danger)">빨간 Hook Layer</span> = 모든 단계에 항상 작동(0 토큰) &middot;
+    <span style="color:var(--purple)">보라 Right-Size</span> = spec 시 결정되어 architect/qa 행위를 자동 조절 &middot;
+    <span style="color:var(--warn)">노랑 Prototype / Migrate</span> = Standard로 승격되는 재진입 경로 &middot;
+    <span style="color:var(--text2)">회색 State</span> = 모든 단계의 산출물이 축적되는 Source of Truth.
+    <strong>G1&ndash;G4:</strong> G1=Spec→Architect, G2=Test→Plan, G3=Plan→Implement, G4=QA→Deploy &mdash; 각 게이트는 Hook으로 결정론적 차단.
+  </p>
+
+  <h3>Domain B &mdash; Standard Mode Pipeline</h3>
+  <div class="flow">
+    <div class="flow-step">Phase 0<br><strong>/harness:init</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Phase 1<br><strong>/harness:brainstorm</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step highlight">Phase 2<br><strong>/harness:spec</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Phase 3<br><strong>/harness:architect</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Phase 4<br><strong>Test Strategy</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step highlight">Phase 5<br><strong>/harness:plan</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step sprint">Phase 6<br><strong>Sprint Loop</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Phase 7<br><strong>/harness:deploy</strong></div>
+  </div>
+  <p style="font-size:12px;color:var(--text2)">Phase 2부터 게이트 강제. Phase 8: /harness:sync (코드 직접 수정 시). Phase 9: Iterate.</p>
+
+  <h3>Sprint Loop (Phase 6)</h3>
+  <div class="diagram">
+    <div class="diagram-title">Implement &rarr; Review &rarr; QA</div>
+    <pre class="mermaid">
+flowchart LR
+  IMP["/harness:implement&lt;br/&gt;(worktree)"] --> REV["/harness:review&lt;br/&gt;(4 reviewers 병렬)"]
+  REV --> QA["/harness:qa&lt;br/&gt;(QA Concern별 실행)"]
+  REV -->|"NEEDS_CHANGE"| IMP
+  QA -->|"FAIL"| IMP
+  QA -->|"PASS"| DEPLOY["/harness:deploy"]
+
+  style IMP fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+  style REV fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+  style QA fill:#1a3020,stroke:#3fb950,color:#e6edf3
+  style DEPLOY fill:#302a1a,stroke:#d29922,color:#e6edf3
+    </pre>
+  </div>
+
+  <h3>QA 테스트 매트릭스 &mdash; Right-Size별 조절</h3>
+  <p class="section-desc">9가지 테스트 유형이 Right-Size에 따라 자동으로 on/off. 각 유형의 정의·차이는 아래 <strong>부록 A</strong> 참조.</p>
+  <table>
+    <thead>
+      <tr><th>테스트 유형</th><th>목적 (한 줄)</th><th style="text-align:center">Small</th><th style="text-align:center">Medium</th><th style="text-align:center">Large</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>Unit</strong></td><td>함수·클래스 단위 로직 검증</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+      <tr><td><strong>Sanity</strong></td><td>수정 부위 국소 검증 (좁고 얕음)</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+      <tr><td><strong>Smoke</strong></td><td>핵심 경로 E2E 스파이크 (넓고 얕음)</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+      <tr><td><strong>Integration</strong></td><td>모듈·실제 의존성 결합 검증</td><td style="text-align:center;color:var(--warn)">&#9888; 선택</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+      <tr><td><strong>Regression</strong></td><td>기존 기능 비파괴 확인</td><td style="text-align:center;color:var(--warn)">&#9888; 선택</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+      <tr><td><strong>E2E</strong></td><td>유저 시나리오 전 구간 검증</td><td style="text-align:center;color:var(--text2)">&#9940; 생략</td><td style="text-align:center;color:var(--warn)">&#9888; 선택</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+      <tr><td><strong>Load</strong></td><td>기대 부하에서 성능·안정성</td><td style="text-align:center;color:var(--text2)">&#9940; 생략</td><td style="text-align:center;color:var(--warn)">&#9888; 선택</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+      <tr><td><strong>Stress</strong></td><td>한계 초과 시 실패 양상 (failure mode)</td><td style="text-align:center;color:var(--text2)">&#9940; 생략</td><td style="text-align:center;color:var(--text2)">&#9940; 생략</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+      <tr><td><strong>Recovery</strong></td><td>장애 후 복구 능력 (RTO/RPO)</td><td style="text-align:center;color:var(--text2)">&#9940; 생략</td><td style="text-align:center;color:var(--text2)">&#9940; 생략</td><td style="text-align:center;color:var(--accent2)">&#9989; 필수</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px"><strong>규칙:</strong> ✅ Gate 통과 조건(미실행 시 QA FAIL) · ⚠️ config로 on/off · ⛔ 리소스 낭비 방지. large 규모에서 load/stress/recovery skip 시 <code>.harness/state/qa-log.jsonl</code>에 사유·마감일 기록 필수.</p>
+
+  <h4 style="margin-top:20px"><code>/harness:qa</code> CLI 플래그 &mdash; on-demand 실행</h4>
+  <p class="section-desc">Right-Size 매트릭스는 <strong>기본값</strong>. 매 호출마다 아래 플래그로 실행 집합을 자유 조정 가능 — 모든 호출은 audit에 기록된다.</p>
+  <table>
+    <thead><tr><th>플래그</th><th>의미</th><th>예시</th></tr></thead>
+    <tbody>
+      <tr><td><em>(없음)</em></td><td><code>config.testing.scope.mode</code>를 따름 (기본 auto → 매트릭스)</td><td><code>/harness:qa</code></td></tr>
+      <tr><td><code>--all</code></td><td>정의된 모든 유형 실행 (매트릭스 무시)</td><td><code>/harness:qa --all</code></td></tr>
+      <tr><td><code>--only &lt;types&gt;</code></td><td>지정한 유형<strong>만</strong> 실행</td><td><code>/harness:qa --only unit,load</code></td></tr>
+      <tr><td><code>--exclude &lt;types&gt;</code></td><td>기본 집합에서 제외 (<code>--skip</code> 별칭)</td><td><code>/harness:qa --exclude load,stress</code></td></tr>
+      <tr><td><code>--force-size &lt;size&gt;</code></td><td><strong>이번 호출 1회만</strong> right-size 변경 — config/workflow.json 불변</td><td><code>/harness:qa --force-size large</code></td></tr>
+      <tr><td><code>--reason "..."</code></td><td>필수 유형 skip 시 사유 기록 (audit + qa-log)</td><td><code>/harness:qa --exclude load --reason "infra 점검"</code></td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>우선순위:</strong> <code>--only</code> &gt; <code>--all</code> &gt; <code>--exclude</code>/<code>--skip</code> &gt; 기본값. <code>--force-size</code>는 매트릭스 계산 자체에 영향.
+  </p>
+
+  <h4>Gate (G4: QA→Deploy) 정책 &mdash; <code>config.testing.skip_required_policy</code></h4>
+  <table>
+    <thead><tr><th>값</th><th>동작</th><th>권장 상황</th></tr></thead>
+    <tbody>
+      <tr><td><code>block_deploy</code> (기본)</td><td>필수 유형 skip 시 테스트는 실행되나 <strong>G4 통과 불가</strong></td><td>안전 기본값 — 필수 테스트 누락 배포 방지</td></tr>
+      <tr><td><code>warn</code></td><td>audit 기록만, G4 통과</td><td>실험/학습 프로젝트</td></tr>
+      <tr><td><code>allow</code></td><td>완전 무시 (dangerously)</td><td>개인 스크래치 — 프로덕션 금지</td></tr>
+    </tbody>
+  </table>
+
+  <h4>대표 시나리오</h4>
+  <table>
+    <thead><tr><th>상황</th><th>명령</th><th>결과</th></tr></thead>
+    <tbody>
+      <tr><td>small 기능 + 전체 돌려보고 싶다</td><td><code>/harness:qa --all --reason "post-refactor sweep"</code></td><td>9종 전부 실행, 필수 누락 없음 → G4 통과</td></tr>
+      <tr><td>small 기능 + 이번만 large 매트릭스</td><td><code>/harness:qa --force-size large</code></td><td>E2E/Load/Stress/Recovery 포함 실행. workflow.json 불변</td></tr>
+      <tr><td>large + load skip (기한 있음)</td><td><code>/harness:qa --skip load --reason "infra maint, due 2026-04-20"</code></td><td>load 제외 실행. <code>block_deploy</code> 정책상 Deploy 차단. qa-log에 마감일 기록</td></tr>
+      <tr><td>단일 유형만 빠르게 확인</td><td><code>/harness:qa --only smoke</code></td><td>smoke만 실행. 매트릭스 기준 필수 누락 → G4 차단</td></tr>
+      <tr><td>하네스 없이 개발자 직접 부하테스트</td><td><code>pnpm test:load</code></td><td>하네스 미관여, audit 기록 없음, G4 상태 불변</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Coverage 전략 &mdash; 다축 신뢰도 (Multi-Axis)</h3>
+  <p class="section-desc">Line 100%는 증명이 아니다. <strong>3범주 × 8축</strong> 교차 검증으로만 "테스트가 실제로 버그를 잡는다"는 주장이 성립한다.</p>
+  <table>
+    <thead><tr><th>범주</th><th>축</th><th>질문</th><th>측정 주체</th><th>small</th><th>medium</th><th>large</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="4" style="background:#1a2030"><strong>정량</strong></td><td>line</td><td>라인이 실행됐는가</td><td>coverage runner</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td></tr>
+      <tr><td>branch</td><td>분기가 실행됐는가</td><td>coverage runner</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td></tr>
+      <tr><td>mutation score</td><td>코드 변이를 감지하는가</td><td>Stryker/PIT/mutmut/cargo-mutants</td><td style="text-align:center;color:var(--text2)">⛔</td><td style="text-align:center;color:var(--warn)">⚠️</td><td style="text-align:center;color:var(--accent2)">✅</td></tr>
+      <tr><td>ac coverage</td><td>모든 AC가 매핑+PASS인가</td><td>coverage.json (하네스 내장)</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td></tr>
+      <tr><td rowspan="3" style="background:#1f1a30"><strong>정성</strong></td><td>boundary</td><td>off-by-one / null / empty / max / min</td><td>test-strategist</td><td style="text-align:center;color:var(--warn)">⚠️</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td></tr>
+      <tr><td>error path</td><td>예외·실패 분기</td><td>reviewer-quality</td><td style="text-align:center;color:var(--warn)">⚠️</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td></tr>
+      <tr><td>integration ratio</td><td>Mock-only 비율 (실제 의존성 ratio)</td><td>mock-ratio.mjs</td><td style="text-align:center;color:var(--text2)">⛔</td><td style="text-align:center;color:var(--warn)">⚠️</td><td style="text-align:center;color:var(--accent2)">✅</td></tr>
+      <tr><td style="background:#301a20"><strong>트렌드</strong></td><td>delta</td><td>iteration 간 감소?</td><td>coverage-trend.mjs</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td><td style="text-align:center;color:var(--accent2)">✅</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>G4 판정:</strong> 단일 수치가 아닌 <strong>모든 필수 축 AND</strong>. <em>line ≥ 80% ∧ branch ≥ 70% ∧ ac = 100% ∧ (Right-Size별) mutation/boundary/error_path/integration_ratio/delta 모두 충족.</em><br>
+    <strong>안티패턴 감지:</strong> Line 100%+assertion 없음(mutation) · Mock-only(integration_ratio) · AC 누락(ac 100%) · Happy path 전용(error_path) · 테스트 삭제로 수치 유지(delta) · skip으로 flaky 감추기(skip 추적).<br>
+    <strong>보고서:</strong> <code>.harness/state/coverage-report.json</code> + 추이 <code>coverage-trend.json</code>. Audit: <code>coverage_evaluated</code> 이벤트.
+  </p>
+
+  <h3 id="qa-stack">QA Stack &mdash; 계층 의존 순차 검증 (Bottom-Up)</h3>
+  <p class="section-desc">
+    <strong>UI · API · DB · Infra는 의존 스택.</strong> 하위 계층 PASS 상태에서 상위 FAIL 하면 원인은 <strong>반드시 그 상위 계층</strong>이다.
+    하네스는 이 의존 관계로 <strong>실패 귀인(attribution)</strong> 을 자동화한다. 상세: <code>03-workflow.md §1.3.1</code>.
+  </p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label workflow">Stack (기본 계층)</div>
+      <div class="card-title">Infra → DB → API → UI</div>
+      <div class="card-body" style="font-family:var(--mono);font-size:12px;line-height:1.7">
+        Layer 3 &mdash; <strong>UI</strong>&nbsp;&nbsp;&nbsp;&nbsp;(의존: API) &nbsp;&nbsp;비주얼·a11y·반응형·브라우저<br>
+        &nbsp;&nbsp;│<br>
+        Layer 2 &mdash; <strong>API</strong>&nbsp;&nbsp;&nbsp;(의존: DB) &nbsp;&nbsp;&nbsp;엔드포인트 계약·에러·인증<br>
+        &nbsp;&nbsp;│<br>
+        Layer 1 &mdash; <strong>DB</strong>&nbsp;&nbsp;&nbsp;&nbsp;(의존: Infra) &nbsp;마이그레이션·인덱스·쿼리<br>
+        &nbsp;&nbsp;│<br>
+        Layer 0 &mdash; <strong>Infra</strong>&nbsp;(의존: 없음) &nbsp;&nbsp;환경변수·CORS/CSP·secret·네트워크
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">Attribution 예시</div>
+      <div class="card-title">"순수 UI 문제" 자동 진단</div>
+      <div class="card-body" style="font-family:var(--mono);font-size:12px;line-height:1.7">
+        Infra ── PASS<br>
+        DB&nbsp;&nbsp;&nbsp;&nbsp;── PASS<br>
+        API &nbsp;&nbsp;── PASS ← 결정적<br>
+        UI&nbsp;&nbsp;&nbsp;&nbsp;── <span style="color:var(--danger)">FAIL</span><br><br>
+        attribution.mjs → {<br>
+        &nbsp;&nbsp;"failed_layer": "ui",<br>
+        &nbsp;&nbsp;"verdict": <strong style="color:var(--accent2)">"pure_ui_issue"</strong>,<br>
+        &nbsp;&nbsp;"confidence": "high"<br>
+        }<br>
+        → Sprint 복귀 시 "UI만 의심" 컨텍스트 주입
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">mock_guard (필수 전제)</div>
+      <div class="card-title">상위가 하위를 mock 하면 귀인 무효</div>
+      <div class="card-body">
+        UI 테스트가 API를 mock → "API PASS" 전제가 깨짐 → 귀인 신뢰 불가.<br><br>
+        <strong>enforce:</strong><br>
+        • <code>strict_lower_real</code> (기본) — 감지 시 G4 <strong>BLOCK</strong><br>
+        • <code>warn</code> — <code>qa_attribution_warning</code> emit, 진행 (confidence: low)<br>
+        • <code>off</code> — 검사 없음 (legacy 호환)<br>
+        <em style="color:var(--text2);font-size:12px">구현: scripts/qa/mock-ratio.mjs &mdash; integration_ratio와 규칙 공유</em>
+      </div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:24px">실행 모드 비교 (<code>testing.qa_stack.mode</code>)</h4>
+  <table>
+    <thead><tr><th>모드</th><th>동작</th><th>장점</th><th>단점</th><th>Right-Size 기본 권고</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>parallel</code> <em style="color:var(--text2)">(기본)</em></td>
+        <td>QA Concern 동시 실행</td>
+        <td>빠름, 하위호환</td>
+        <td>실패 귀인 약함 &mdash; "UI 실패, 원인 불명"</td>
+        <td>small, medium</td>
+      </tr>
+      <tr>
+        <td><code>sequential_bottom_up</code></td>
+        <td>Infra→DB→API→UI 순차. 하위 FAIL 시 상위 skip + 자동 귀인</td>
+        <td><strong>완고한 소프트웨어 구축</strong>, fail-fast, 귀인 자동화</td>
+        <td>느림 (직렬), 하위 테스트 기반 필요</td>
+        <td><strong>large (강력 권고)</strong></td>
+      </tr>
+      <tr>
+        <td><code>custom</code></td>
+        <td><code>custom_order</code> 배열 순서</td>
+        <td>특수 스택 (MQ 중심 등)</td>
+        <td>DAG 검증 책임 유저</td>
+        <td>&mdash;</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4 style="margin-top:16px">Sequential Bottom-Up 실행 흐름</h4>
+<pre><code>scripts/qa/stack-runner.mjs
+  ├── 0. DAG 검증: depends_on 순환이면 exit 2
+  ├── 1. topological 순 실행 (Infra → DB → API → UI)
+  │   ├── mock_guard 검사 (상위가 하위 mock 했나?)
+  │   ├── layer.tests[] 실행 (testing.commands.*)
+  │   └── 결과:
+  │       ├── PASS → 다음 layer
+  │       ├── FAIL + halt_upstream → 상위 skip + emit qa_layer_halted
+  │       ├── FAIL + continue / warn → 계속
+  └── 2. attribution.mjs
+      ├── 실패 layer + 하위 PASS 확인
+      └── verdict: all_green | pure_{layer}_issue | multi_layer: […]
+      → .harness/state/qa-attribution.json + emit qa_attribution_report</code></pre>
+
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>fail_policy (per layer):</strong> <code>halt_upstream</code> (기본, 상위 skip) · <code>continue</code> (계속, 귀인만 남김) · <code>warn</code> (계속, 로그만)<br>
+    <strong>Audit 이벤트:</strong> <code>qa_layer_halted</code> · <code>qa_attribution_report</code> · <code>qa_attribution_warning</code><br>
+    <strong>한 줄:</strong> <em>"Parallel은 '동시에' 테스트하고, Sequential은 '순서대로' 책임을 분리한다."</em>
+  </p>
+
+  <h3 id="escape-hatch">Escape Hatch &mdash; 유저 의도 기반 우회</h3>
+  <p class="section-desc">
+    Claude Code <code>--dangerously-skip-permissions</code> 대응. 핫픽스/실험/데모처럼 유저가 의도적으로 gate/review/qa를 우회해야 하는 상황 지원.
+    <strong>이름이 아닌 구조</strong>로 위험 강제. 상세: <code>03-workflow.md §1.9</code>.
+  </p>
+
+  <div class="cards">
+    <div class="card" style="border-color:rgba(248,81,73,0.4)">
+      <div class="card-label" style="background:rgba(248,81,73,0.15);color:#f85149">경로 A</div>
+      <div class="card-title">CLI 플래그 (명시적 의도)</div>
+      <div class="card-body" style="font-size:12px;line-height:1.7">
+        <code>--bypass-gates &lt;g1,...&gt;</code><br>
+        <code>--bypass-review</code><br>
+        <code>--bypass-qa</code><br>
+        <code>--bypass-deploy-gate</code><br>
+        <em style="color:var(--text2)">등장: implement, qa, deploy</em>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(248,81,73,0.4)">
+      <div class="card-label" style="background:rgba(248,81,73,0.15);color:#f85149">경로 B</div>
+      <div class="card-title">자연어 의도 (Prompt Lexicon)</div>
+      <div class="card-body" style="font-size:12px;line-height:1.7">
+        <code>config.prompt_pipeline.escape_lexicon</code><br>
+        "긴급 배포" → <code>--bypass-qa</code> 제안<br>
+        "spec 없이" → <code>--bypass-gates g1</code> 제안<br>
+        "리뷰 스킵" → <code>--bypass-review</code> 제안<br>
+        <em style="color:var(--text2)">자동 우회 X — 확인 프롬프트 + reason 요구</em>
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(248,81,73,0.4)">
+      <div class="card-label" style="background:rgba(248,81,73,0.15);color:#f85149">3중 안전장치</div>
+      <div class="card-title">이름이 아닌 구조로 위험 강제</div>
+      <div class="card-body" style="font-size:12px;line-height:1.7">
+        ① <code>--reason "..."</code> 필수 (누락 → exit 2)<br>
+        ② <code>gate_bypassed</code> audit (append-only)<br>
+        ③ 세션 sticky warning (stderr 배너)<br>
+        + 주간 <code>bypass_budgets</code> 초과 → 설계 재검토
+      </div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:16px">우회 <strong>불가</strong> 영역 (Hard Safety)</h4>
+  <table>
+    <thead><tr><th>대상</th><th>이유</th><th>대응</th></tr></thead>
+    <tbody>
+      <tr><td>파괴적 bash (<code>rm -rf /</code>, <code>DROP TABLE</code>)</td><td>데이터 손실 복구 불가</td><td>shell 직접 실행</td></tr>
+      <tr><td>force-push 차단</td><td>팀 작업 파괴</td><td><code>git push --force-with-lease</code> 직접</td></tr>
+      <tr><td><code>.harness/state/</code> 직접 편집</td><td>상태 무결성 파괴</td><td><code>/harness:sync</code> 경유</td></tr>
+      <tr><td>prototype mode deploy</td><td>설계 원칙 (정의상 미검증)</td><td><code>/harness:sync --promote</code> 후</td></tr>
+    </tbody>
+  </table>
+
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>한 줄:</strong> <em>"우회는 있어야 한다. 단, 익명이면 안 된다."</em>
+    &mdash; <code>--bypass-*</code> = 의도 명시 + <code>--reason</code> 기록 + audit 불변 + 세션 경고 + 지표 집계.
+  </p>
+
+  <h3>부록 A &mdash; 테스팅 방법 정리 (9종 비교)</h3>
+  <p class="section-desc">"무엇을 묻는 테스트인가" 기준의 차이. 상세: <code>03-workflow.md 부록 A</code>.</p>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label agent">Unit</div>
+      <div class="card-title">"이 함수가 맞게 동작하는가?"</div>
+      <div class="card-body"><strong>범위:</strong> 단일 함수/클래스 (mock 허용)<br>
+      <strong>속도:</strong> 초 이내 · 코드 변경마다 실행<br>
+      <strong>오해:</strong> "1 test = 1 assert"가 아니라 <em>1 단위의 1 행동</em><br>
+      <strong>예:</strong> <code>AuthService.login()</code> 반환 검증 (DB mock)</div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">Sanity</div>
+      <div class="card-title">"수정한 부분이 말이 되는가?"</div>
+      <div class="card-body"><strong>범위:</strong> 변경 부위 국소 — <em>좁고 얕음</em><br>
+      <strong>트리거:</strong> 버그 수정·핫픽스 직후<br>
+      <strong>Smoke와 차이:</strong> Smoke는 <em>넓고 얕음</em>(핵심 경로), Sanity는 <em>좁고 얕음</em>(수정 부위)<br>
+      <strong>예:</strong> lockout 수정 → 해당 함수만 호출해 0 아닌 값 반환 확인</div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">Smoke</div>
+      <div class="card-title">"불 켜니 연기 나는가?"</div>
+      <div class="card-body"><strong>범위:</strong> 핵심 경로 1~2개 E2E 슬라이스 — <em>넓고 얕음</em><br>
+      <strong>트리거:</strong> 빌드/배포 직후<br>
+      <strong>통과 조건:</strong> business-critical flow가 end-to-end로 돌아감<br>
+      <strong>예:</strong> 로그인 → 메인 → 로그아웃 스크립트 1회 통과</div>
+    </div>
+    <div class="card">
+      <div class="card-label knowledge">Integration</div>
+      <div class="card-title">"모듈들이 함께 동작하는가?"</div>
+      <div class="card-body"><strong>범위:</strong> 2+ 모듈 + 실제 의존성(DB, Redis, 외부 API)<br>
+      <strong>Unit과 차이:</strong> mock 대신 컨테이너/실제 인스턴스<br>
+      <strong>검증 대상:</strong> 모듈 간 계약·트랜잭션·타이밍<br>
+      <strong>예:</strong> AuthService + Postgres + Redis — 5회 실패 후 Redis lockout 카운터 반영</div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">Regression</div>
+      <div class="card-title">"예전에 되던 게 아직도 되는가?"</div>
+      <div class="card-body"><strong>범위:</strong> 전체 기존 test suite 재실행 (비파괴 검증)<br>
+      <strong>원칙:</strong> 버그 수정 시 <em>재현 test</em>를 먼저 추가 → 영구 회귀 방어<br>
+      <strong>하네스 강제:</strong> 기존 test 삭제/수정 시 경고 + 사유 기록<br>
+      <strong>예:</strong> PR마다 CI에서 전체 suite 실행 · PostToolUse Hook side-effect 검출</div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">E2E</div>
+      <div class="card-title">"유저 시나리오가 끝까지 돌아가는가?"</div>
+      <div class="card-body"><strong>범위:</strong> UI → 백엔드 → DB → 외부 시스템 전 구간<br>
+      <strong>Smoke와 차이:</strong> Smoke는 핵심 1개, E2E는 다양한 시나리오 + edge case<br>
+      <strong>도구:</strong> Playwright / Cypress / Selenium<br>
+      <strong>예:</strong> 가입 → 이메일 인증 → 로그인 → 결제 → 환불 → 로그아웃</div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">Load</div>
+      <div class="card-title">"기대 부하에서 SLA를 지키는가?"</div>
+      <div class="card-body"><strong>범위:</strong> 시스템 전체 — <em>평소 수준</em> 부하<br>
+      <strong>통과 조건:</strong> p95/p99 latency · error rate · 리소스 사용량 임계 이내<br>
+      <strong>Stress와 차이:</strong> Load = "평소 OK", Stress = "한계 초과 시"<br>
+      <strong>예:</strong> k6로 1000 RPS · 60s · p95 &lt; 200ms · error &lt; 0.1%</div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">Stress</div>
+      <div class="card-title">"한계 넘기면 어떻게 망가지는가?"</div>
+      <div class="card-body"><strong>범위:</strong> 시스템 전체 — <em>초과 부하</em><br>
+      <strong>목적:</strong> "안 망가짐"이 아닌 "망가질 때 graceful한가"<br>
+      <strong>통과 조건:</strong> 명확한 에러 응답 · 데이터 손상 無 · circuit breaker · 자동 회복<br>
+      <strong>예:</strong> 10000 RPS → OOM 없이 429 반환 → 부하↓ 시 30초 내 정상화</div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">Recovery</div>
+      <div class="card-title">"장애 후 복구되는가?"</div>
+      <div class="card-body"><strong>범위:</strong> 전체 시스템 + 인프라 (DB/노드/네트워크/디스크)<br>
+      <strong>Stress와 차이:</strong> Stress는 한계 중, Recovery는 <em>장애 끝난 후</em> 복귀 능력<br>
+      <strong>통과 조건:</strong> RTO(복구 시간)·RPO(데이터 손실) SLA 충족 · data integrity<br>
+      <strong>예:</strong> Primary DB kill → 30s 내 replica failover → 실패한 write는 명확히 거절 (no silent loss)</div>
+    </div>
+  </div>
+
+  <h3>판별 플로우차트</h3>
+  <div class="diagram">
+    <div class="diagram-title">어떤 테스트를 써야 하는가?</div>
+    <pre class="mermaid">
+flowchart TD
+  START(["테스트 작성 필요"]) --> Q1{"변경 지점에 국한?"}
+  Q1 -->|Yes| SAN["Sanity"]
+  Q1 -->|No| Q2{"mock으로 고립 가능?"}
+  Q2 -->|Yes| U["Unit"]
+  Q2 -->|No| Q3{"핵심 경로 1~2개만?"}
+  Q3 -->|Yes| SMK["Smoke"]
+  Q3 -->|No| Q4{"다양한 유저 시나리오 전 구간?"}
+  Q4 -->|Yes| E["E2E"]
+  Q4 -->|No| Q5{"여러 모듈 + 실제 의존성?"}
+  Q5 -->|Yes| INT["Integration"]
+  Q5 -->|No| Q6{"기존 기능 비파괴 확인?"}
+  Q6 -->|Yes| REG["Regression"]
+  Q6 -->|No| Q7{"부하 기대치 내?"}
+  Q7 -->|Yes| LD["Load"]
+  Q7 -->|No-한계 초과| Q8{"한계 초과 시 실패 양상?"}
+  Q8 -->|Yes| STR["Stress"]
+  Q8 -->|장애 후| REC["Recovery"]
+
+  style SAN fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+  style U fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+  style SMK fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style E fill:#1a3020,stroke:#3fb950,color:#e6edf3
+  style INT fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+  style REG fill:#3a1a1a,stroke:#f85149,color:#e6edf3
+  style LD fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style STR fill:#3a1a1a,stroke:#f85149,color:#e6edf3
+  style REC fill:#3a1a1a,stroke:#f85149,color:#e6edf3
+    </pre>
+  </div>
+
+  <h3>테스트 피라미드 vs 트로피</h3>
+  <table>
+    <thead><tr><th>형태</th><th>비율 (Unit : Integration : E2E)</th><th>적합한 프로젝트</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Pyramid</strong> (전통)</td><td>70 : 20 : 10</td><td>로직 복잡, 외부 의존성 적은 백엔드</td></tr>
+      <tr><td><strong>Trophy</strong> (Kent C. Dodds)</td><td>20 : 60 : 15 (+5 static)</td><td>UI · BFF · 통합 중심 서비스</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2)">Load/Stress/Recovery는 피라미드 외부 취급 (리소스·타이밍 독립). Smoke/Sanity/Regression은 수단이지 레이어가 아님. 기본값 <code>pyramid</code>, config로 <code>trophy</code> 전환 가능.</p>
+
+  <h3>Gate System</h3>
+  <h4>Iron Law Gates (끌 수 없음)</h4>
+  <table>
+    <thead><tr><th>Gate</th><th>조건</th><th>차단 시</th></tr></thead>
+    <tbody>
+      <tr><td><strong>G1</strong> Spec&rarr;Implement</td><td>.harness/specs/ 에 spec 존재</td><td>"Spec이 없습니다. /harness:spec으로 먼저 작성하세요."</td></tr>
+      <tr><td><strong>G2</strong> Plan&rarr;Implement</td><td>.harness/plans/ 에 plan 존재</td><td>"Plan이 없습니다. /harness:plan으로 먼저 작성하세요."</td></tr>
+      <tr><td><strong>G3</strong> Test&rarr;QA</td><td>tests/ 에 매핑된 test 존재</td><td>"Test가 없습니다."</td></tr>
+      <tr><td><strong>G4</strong> QA&rarr;Deploy</td><td>qa.passed = true</td><td>"QA를 통과하지 못했습니다."</td></tr>
+      <tr><td><strong>G5</strong> 구현&ne;검증</td><td>에이전트 분리</td><td>구조적으로 위반 불가</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Mode Transitions (Explore / Prototype / Standard)</h3>
+  <div class="diagram">
+    <div class="diagram-title">3개 Mode 간 승격 경로</div>
+    <pre class="mermaid">
+flowchart LR
+  STD["Standard&lt;br/&gt;(Full SDLC)"]
+  PROTO["Prototype&lt;br/&gt;(빠른 실험)"]
+  EXP["Explore&lt;br/&gt;(QnA · 학습)"]
+  SYNC["/harness:sync --promote&lt;br/&gt;(spec 역추출 + test 생성)"]
+
+  STD -->|"set prototype"| PROTO
+  STD -->|"set explore"| EXP
+  EXP <-->|"set prototype / set explore"| PROTO
+  EXP -->|"/harness:sync --promote"| SYNC
+  PROTO -->|"/harness:sync --promote"| SYNC
+  SYNC --> STD
+
+  style EXP fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+  style PROTO fill:#302a1a,stroke:#d29922,color:#e6edf3
+  style STD fill:#1a3020,stroke:#3fb950,color:#e6edf3
+  style SYNC fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+    </pre>
+  </div>
+  <p style="font-size:12px;color:var(--text2)">Standard &rarr; Prototype/Explore: 즉시 허용 (강등). Explore &harr; Prototype: 양방향 즉시 허용. Prototype/Explore &rarr; Standard: <code>/harness:sync --promote</code> 필수 (Spec 역추출 + Test 생성). <code>set standard</code> 명령은 차단.</p>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> 프로세스 강제 vs 마찰 감소 &mdash; 왜 Prototype 모드가 필요한가</div>
+    <div class="insight-body">
+      <strong>agentic-framework-patterns.md &sect;3 M2</strong><br><br>
+      SP: 7-Stage Pipeline, skip 불가 &rarr; LLM 합리화 차단에 효과적이지만 작은 작업에 과도한 마찰.<br>
+      CE: Right-Size Ceremony &rarr; 유연하지만 프로세스 건너뛰기 위험.<br><br>
+      하네스 해결: Standard Mode(SP 방식) + Prototype Mode(탈출구) + /harness:sync(다리).<br>
+      "빠르게 만드는 것은 허용하되, 배포 게이트만은 반드시 지킨다."
+    </div>
+  </div>
+
+  <h3>Domain C &mdash; Migration</h3>
+  <div class="flow">
+    <div class="flow-step">Phase 0<br><strong>/harness:migrate init</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Phase 1<br><strong>/harness:migrate analyze</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Phase 2<br><strong>/harness:migrate extract-spec</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Phase 3<br><strong>/harness:migrate gen-test</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step highlight">Forward Join<br><strong>Domain B 합류</strong></div>
+  </div>
+  <p style="font-size:12px;color:var(--text2)">역방향: Code &rarr; Spec 역추출 &rarr; Test 보강 &rarr; 정방향 워크플로우 합류. Lv2(래핑) + Lv3(리팩토링) 혼합.</p>
+
+  <h3>Domain A &mdash; Self-Development</h3>
+  <div class="flow">
+    <div class="flow-step">설계<br><strong>docs/design/</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Spec<br><strong>dev/specs/</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">Test<br><strong>dev/tests/</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">구현<br><strong>harness/</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">검증<br><strong>bench/</strong></div><span class="flow-arrow">&rarr;</span>
+    <div class="flow-step">배포<br><strong>marketplace/</strong></div>
+  </div>
+  <p style="font-size:12px;color:var(--text2);margin-bottom:8px">Spec 형식: <code>HSPEC-{component}</code> ID + <code>HAC-*</code> AC 사용 (사용자 프로젝트 Spec과 동일 YAML 구조). 테스트 4계층: Unit(<code>dev/tests/unit/</code>) &rarr; Eval(<code>bench/evals/</code>, headless <code>claude -p</code>) &rarr; Pressure(<code>bench/pressure/</code>, 3+ 조합) &rarr; Regression(<code>bench/regression/</code>, baseline 대비).</p>
+  <table style="font-size:12px;margin-bottom:12px">
+    <thead><tr><th>부트스트래핑 단계</th><th>성숙도</th><th>개발 방식</th><th>검증</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Phase 0</strong> (현재)</td><td>설계 문서</td><td>수동 구현 + 수동 리뷰</td><td>Unit 수동 실행</td></tr>
+      <tr><td><strong>Phase 1</strong></td><td>Safety + Gate Engine</td><td>Gate Engine이 자체 게이트 강제</td><td>Unit + 수동 Eval</td></tr>
+      <tr><td><strong>Phase 2</strong></td><td>Workflow + Agent</td><td><code>/harness:spec</code> &rarr; <code>/harness:implement</code></td><td>Unit + Eval 자동화</td></tr>
+      <tr><td><strong>Phase 3</strong></td><td>전체 파이프라인</td><td>풀 하네스로 자기자신 개발</td><td>Unit + Eval + Pressure + Regression</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2)">핵심: 이전 Phase에서 만든 도구로 다음 Phase를 개발. 자기 참조 순환이 아닌 <strong>층위별 점진적 자기 적용</strong>.</p>
+</div>
+
+<!-- ═══════════════════════════ AGENTS ═══════════════════════════ -->
+<div class="panel" id="agents">
+  <h2>Agent System</h2>
+  <p class="section-desc">역할 에이전트, 단계별 조합, 페르소나 시스템, 모델 티어링, 에스컬레이션</p>
+
+  <h3>Dual Structure</h3>
+  <div class="comparison">
+    <div class="comp-col">
+      <h4 style="color:var(--accent)">User Sees: Skills (Phase-based)</h4>
+      <p>/harness:brainstorm &rarr; /harness:spec &rarr; /harness:architect &rarr; /harness:plan &rarr; /harness:implement &rarr; /harness:review &rarr; /harness:qa</p>
+    </div>
+    <div class="comp-col">
+      <h4 style="color:var(--purple)">Internal: Agents (Role-based)</h4>
+      <p>explorer, implementer, reviewer-*, test-strategist, verifier, architect, devils-advocate...</p>
+    </div>
+  </div>
+
+  <h3>Core Agents (12)</h3>
+  <table>
+    <thead><tr><th>Agent</th><th>Model</th><th>Tools</th><th>Isolation</th><th>Role</th></tr></thead>
+    <tbody>
+      <tr><td>explorer</td><td><span class="model-badge haiku">haiku</span></td><td>Read, Grep, Glob</td><td>-</td><td>코드/문서 탐색. 읽기 전용</td></tr>
+      <tr><td>requirements-analyst</td><td><span class="model-badge sonnet">sonnet</span></td><td>Read, Grep, Glob</td><td>-</td><td>요구사항 구조화</td></tr>
+      <tr><td>devils-advocate</td><td><span class="model-badge opus">opus</span></td><td>Read, Grep</td><td>-</td><td>반론 + 빈틈 공격 (적대적 reasoning)</td></tr>
+      <tr><td>architect</td><td><span class="model-badge opus">opus</span></td><td>전체</td><td>-</td><td>아키텍처 결정, ADR</td></tr>
+      <tr><td>test-strategist</td><td><span class="model-badge sonnet">sonnet</span></td><td>Read, Grep, Bash</td><td>-</td><td>Spec &rarr; Test 전략</td></tr>
+      <tr><td>implementer</td><td><span class="model-badge sonnet">sonnet</span></td><td>전체</td><td style="color:var(--accent)"><strong>worktree</strong></td><td>Plan 따라 구현 (TDD)</td></tr>
+      <tr><td>verifier</td><td><span class="model-badge haiku">haiku</span></td><td>Bash, Read, Grep</td><td>-</td><td>테스트 실행 + 커버리지</td></tr>
+      <tr><td>reviewer-security</td><td><span class="model-badge opus">opus</span></td><td>Read, Grep, Glob</td><td>-</td><td>OWASP Top 10, CWE Top 25 (recall 최우선)</td></tr>
+      <tr><td>reviewer-performance</td><td><span class="model-badge sonnet">sonnet</span></td><td>Read, Grep, Glob</td><td>-</td><td>N+1, 메모리 누수, 복잡도</td></tr>
+      <tr><td>reviewer-quality</td><td><span class="model-badge sonnet">sonnet</span></td><td>Read, Grep, Glob</td><td>-</td><td>SOLID, Clean Code</td></tr>
+      <tr><td>reviewer-spec</td><td><span class="model-badge sonnet">sonnet</span></td><td>Read, Grep, Glob</td><td>-</td><td>Spec AC 충족 여부</td></tr>
+      <tr><td>qa-engineer</td><td><span class="model-badge sonnet">sonnet</span></td><td>Bash, Read, Grep</td><td style="color:var(--accent)"><strong>worktree</strong></td><td>QA Concern별 실행 (API/UI/DB/Infra)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Reviewer Judgment Criteria</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label safety">reviewer-security</div>
+      <div class="card-title">OWASP Top 10 + CWE Top 25</div>
+      <div class="card-body">A01 Broken Access Control<br>A02 Cryptographic Failures<br>A03 Injection (SQL/XSS/Command)<br>A07 XSS<br>CWE-79, CWE-89, CWE-787, CWE-862...</div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">reviewer-quality</div>
+      <div class="card-title">SOLID + Clean Code</div>
+      <div class="card-body"><strong>S</strong>ingle Responsibility<br><strong>O</strong>pen/Closed<br><strong>L</strong>iskov Substitution<br><strong>I</strong>nterface Segregation<br><strong>D</strong>ependency Inversion<br>함수 &le;20줄, 매개변수 &le;3개, 중복 3회+</div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">reviewer-performance</div>
+      <div class="card-title">Performance Patterns</div>
+      <div class="card-body">N+1 쿼리 패턴<br>메모리 누수 가능성<br>불필요한 O(n&sup2;)<br>인덱스/캐시 전략<br>Big-O 복잡도 분석</div>
+    </div>
+  </div>
+
+  <h3>Skill &rarr; Agent Composition</h3>
+  <div class="diagram">
+    <div class="diagram-title">/harness:review Skill Example</div>
+    <pre class="mermaid">
+flowchart TD
+  SKILL["/harness:review Skill&lt;br/&gt;(Controller)"]
+  EXP["explorer&lt;br/&gt;diff 분석"]
+  RS["reviewer-security&lt;br/&gt;OWASP / CWE"]
+  RP["reviewer-performance&lt;br/&gt;N+1 / 복잡도"]
+  RQ["reviewer-quality&lt;br/&gt;SOLID / Clean Code"]
+  RSP["reviewer-spec&lt;br/&gt;AC 충족"]
+  COLLECT["collect-verdicts.mjs&lt;br/&gt;종합"]
+
+  SKILL --> EXP
+  SKILL --> RS
+  SKILL --> RP
+  SKILL --> RQ
+  SKILL --> RSP
+  RS --> COLLECT
+  RP --> COLLECT
+  RQ --> COLLECT
+  RSP --> COLLECT
+
+  style SKILL fill:#2a1a3a,stroke:#bc8cff,color:#e6edf3
+  style COLLECT fill:#302a1a,stroke:#d29922,color:#e6edf3
+    </pre>
+  </div>
+
+  <h3>Escalation Protocol</h3>
+  <p>비유: 건설 현장의 작업 보고. 작업자(에이전트)가 현장 감독(Controller)에게 보고하는 것과 같다.</p>
+  <div class="cards" style="grid-template-columns: repeat(4, 1fr);">
+    <div class="card" style="text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px">&#10003;</div>
+      <div class="card-title"><span class="status done">DONE</span></div>
+      <div class="card-body" style="margin-top:8px">"벽체 완료"<br>rubric 가중합 &ge; 0.80</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px">&#9888;</div>
+      <div class="card-title"><span class="status concerns">CONCERNS</span></div>
+      <div class="card-body" style="margin-top:8px">"완료했는데 균열 발견"<br>0.60 &le; conf &lt; 0.80</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px">&#63;</div>
+      <div class="card-title"><span class="status needs">NEEDS_CONTEXT</span></div>
+      <div class="card-body" style="margin-top:8px">"배관 도면이 없습니다"<br>conf &lt; 0.60</div>
+    </div>
+    <div class="card" style="text-align:center;">
+      <div style="font-size:24px;margin-bottom:8px">&#10007;</div>
+      <div class="card-title"><span class="status blocked">BLOCKED</span></div>
+      <div class="card-body" style="margin-top:8px">"석면 발견, 진행 불가"<br>구조적 차단</div>
+    </div>
+  </div>
+
+  <h3>Confidence Rubric (Evidence-based)</h3>
+  <p>"LLM 자가 신뢰도"는 신뢰할 수 없다. 하네스는 5개 카테고리 체크리스트로 confidence를 계산한다. 에이전트는 카테고리별 점수를 emit하고 Controller가 가중합을 재계산한다 (자가 부풀리기 방지).</p>
+  <table>
+    <thead><tr><th>카테고리</th><th>가중치</th><th>0.0</th><th>0.5</th><th>1.0</th></tr></thead>
+    <tbody>
+      <tr><td><strong>E</strong> Evidence (직접 관측)</td><td>0.30</td><td>추론만</td><td>패턴 유추 + 일부 확인</td><td>파일/코드/spec 직접 인용</td></tr>
+      <tr><td><strong>C</strong> Coverage (AC 범위)</td><td>0.20</td><td>AC 일부 미처리</td><td>주요 AC + 일부 edge</td><td>모든 AC + 주요 edge</td></tr>
+      <tr><td><strong>V</strong> Verification (검증 실행)</td><td>0.30</td><td>미실행</td><td>정적 검증만 (type/lint)</td><td>test 실제 실행 PASS</td></tr>
+      <tr><td><strong>X</strong> eXternal deps</td><td>0.10</td><td>미확인</td><td>문서 참조로 가정</td><td>실제 호출/버전 확인</td></tr>
+      <tr><td><strong>A</strong> Assumption log</td><td>0.10</td><td>가정 미기록</td><td>일부 기록</td><td>모든 가정 + 검증 방법</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2)"><strong>confidence = 0.30·E + 0.20·C + 0.30·V + 0.10·X + 0.10·A</strong> &nbsp;&rarr;&nbsp; ≥0.80 DONE · 0.60~0.80 CONCERNS · &lt;0.60 NEEDS_CONTEXT</p>
+  <p style="font-size:12px;color:var(--text2)">예: 구현 완료 but test 미실행 → E=1.0, C=1.0, V=0.5, X=0.5, A=0.5 → <strong>0.75 CONCERNS</strong></p>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> 3/3 수렴: 에스컬레이션은 보편 원칙</div>
+    <div class="insight-body">
+      <strong>agentic-framework-patterns.md &sect;1 C4</strong><br><br>
+      SP: DONE/CONCERNS/NEEDS_CONTEXT/BLOCKED + "Bad work > no work"<br>
+      bkit: Guard fail &rarr; retry / escalate + Emergency stop<br>
+      CE: Confidence &lt; 0.60 &rarr; suppress, P0 exception at 0.50+<br><br>
+      핵심: 3개 프로젝트 모두 "서브에이전트가 확실하지 않을 때 무리하지 않는 메커니즘"을 독립적으로 구현.<br>
+      하네스는 SP의 4-Status를 기본으로, CE의 Confidence Calibration을 수치 기준으로 결합.
+    </div>
+  </div>
+
+  <h3>Persona System</h3>
+  <table>
+    <thead><tr><th>구분</th><th>저장 위치</th><th>포맷</th></tr></thead>
+    <tbody>
+      <tr><td><strong>기본 페르소나</strong> (하네스 내장)</td><td>agents/core/ (플러그인 내부)</td><td>.md (Agent frontmatter)</td></tr>
+      <tr><td><strong>유저 페르소나</strong></td><td><strong>.claude/agents/</strong> (Claude Code 표준)</td><td>.md (Agent frontmatter)</td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2)">Claude Code가 .claude/agents/*.md를 네이티브로 탐색하므로 별도 변환 불필요. /harness:init에서 프로젝트 타입별 추천.</p>
+
+  <h3>Model Tiering — "Cost of Miss" 기반</h3>
+  <table>
+    <thead><tr><th>에이전트</th><th>모델</th><th>근거</th></tr></thead>
+    <tbody>
+      <tr><td>architect</td><td><span class="model-badge opus">opus</span></td><td>아키텍처 결정 1회 = 수개월 영향. 재검증 어려움</td></tr>
+      <tr><td>devils-advocate</td><td><span class="model-badge opus">opus</span></td><td>적대적 사고는 depth가 결정적. Spec 빈틈 놓치면 구현 후 재작업</td></tr>
+      <tr><td>reviewer-security</td><td><span class="model-badge opus">opus</span></td><td>1건 누락 = 프로덕션 사고. 데이터 흐름 추론 필요. recall 최우선</td></tr>
+      <tr><td>implementer</td><td><span class="model-badge sonnet">sonnet</span></td><td>Test/Review/QA의 이중·삼중 검증이 방어선. 병렬 실행 ↔ 비용 균형</td></tr>
+      <tr><td>test-strategist / reviewer-* / qa-engineer / analyst</td><td><span class="model-badge sonnet">sonnet</span></td><td>체계적 비교·매핑 작업. 패턴 기반 판단으로 충분</td></tr>
+      <tr><td>explorer / verifier</td><td><span class="model-badge haiku">haiku</span></td><td>읽기 / 실행 / 파싱. LLM 판단 최소</td></tr>
+    </tbody>
+  </table>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">FAQ</span> 구현(implementer)은 왜 opus가 아닌가?</div>
+    <div class="insight-body">
+      <strong>결론: 구조적 검증 장치가 이미 있기 때문.</strong><br><br>
+      &bull; Test-First + Distrust by Structure &rarr; 구현 실수는 test/reviewer/qa가 포착<br>
+      &bull; implementer는 태스크당 수십 회 실행 (vs architect는 수 회) &rarr; opus 비용 폭발<br>
+      &bull; worktree 병렬 실행으로 N배수 증가<br>
+      &bull; <strong>고위험 도메인은 config로 override</strong> (보안/결제/의료):<br>
+      &nbsp;&nbsp;<code>agents.implementer.model: opus</code><br>
+      &bull; Right-Size large에서 자동 상향 옵션도 있음 (<code>auto_tier_by_size: true</code>)<br><br>
+      반면 <strong>architect, devils-advocate, reviewer-security</strong>는 "1회성 판단 + high cost of miss + 재검증 어려움" 세 조건을 모두 만족하므로 default opus.
+    </div>
+  </div>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> 모델 티어링: 3/3 수렴 패턴</div>
+    <div class="insight-body">
+      <strong>agentic-framework-patterns.md &sect;1 C2</strong><br><br>
+      SP: 태스크 복잡도별 &mdash; mechanical / integration / architecture<br>
+      bkit: 역할별 &mdash; 12 opus : 22 sonnet : 2 haiku<br>
+      CE: 상속 기본 &mdash; model: inherit, 필요시 tiering<br><br>
+      수렴점: "모든 작업에 최고 모델" = 3/3이 거부. 역할/복잡도로 분배하는 것이 보편 원칙.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ STRUCTURE ═══════════════════════════ -->
+<div class="panel" id="structure">
+  <h2>Project Structure</h2>
+  <p class="section-desc">하네스 플러그인 구조, 유저 프로젝트 구조, Config 스키마</p>
+
+  <h3>Harness Development (forge/harness/)</h3>
+  <div class="tree"><span class="dir">forge/harness/</span>
+├── <span class="dir">docs/</span>                     <span class="comment">← 문서</span>
+│   ├── <span class="dir">insights/</span>              <span class="comment">← 리서치 분석</span>
+│   └── <span class="dir">design/</span>                <span class="comment">← 설계 문서 (현재)</span>
+├── <span class="dir">dev/</span>                      <span class="comment">← Domain A: 자체 개발 공간</span>
+│   ├── <span class="dir">specs/</span>  <span class="dir">plans/</span>  <span class="dir">tests/</span>
+├── <span class="dir">bench/</span>                    <span class="comment">← 검증/벤치마크</span>
+│   ├── <span class="dir">evals/</span>  <span class="dir">pressure/</span>  <span class="dir">regression/</span>
+└── <span class="dir">marketplace/</span>              <span class="comment">← 배포 산출물</span>
+    └── <span class="dir">plugins/harness/</span></div>
+
+  <h3>User Project Structure</h3>
+  <div class="tree"><span class="dir">user-project/</span>
+├── <span class="dir">.claude/</span>
+│   ├── <span class="file">settings.json</span>          <span class="comment">← 플러그인 활성화</span>
+│   ├── <span class="dir">agents/</span>                <span class="comment">← 유저 페르소나 (Claude Code 표준)</span>
+│   │   ├── <span class="file">ddd-expert.md</span>
+│   │   └── <span class="file">saas-cto.md</span>
+│   └── <span class="dir">rules/</span>                 <span class="comment">← 유저 소유 (optional, examples/ 복사 원본)</span>
+│       ├── <span class="file">harness-workflow.md</span>
+│       ├── <span class="file">test-first.md</span>
+│       └── <span class="file">architecture.md</span>
+├── <span class="file">CLAUDE.md</span>                  <span class="comment">← 유저 소유 (optional, SessionStart hook 대체 가능)</span>
+├── <span class="dir">.harness/</span>                  <span class="comment">← 하네스 관리 공간</span>
+│   ├── <span class="file">config.yaml</span>
+│   ├── <span class="dir">specs/</span>  <span class="dir">plans/</span>  <span class="dir">decisions/</span>  <span class="dir">reviews/</span>
+│   ├── <span class="dir">knowledge/solutions/</span>
+│   └── <span class="dir">state/</span>                 <span class="comment">← 자동 관리 (수정 차단)</span>
+│       ├── <span class="file">workflow.json</span>
+│       └── <span class="file">coverage.json</span>
+├── <span class="dir">src/</span>                       <span class="comment">← 유저 코드 (구조 자유)</span>
+└── <span class="dir">tests/</span>                     <span class="comment">← 유저 테스트 (IDE/CI 인식)</span></div>
+
+  <h3>Key Rules</h3>
+  <table>
+    <thead><tr><th>규칙</th><th>설명</th></tr></thead>
+    <tbody>
+      <tr><td>.harness/ 안은 하네스 관리</td><td>문서 형식, 파일명 규칙, 커버리지 검증</td></tr>
+      <tr><td>.harness/ 밖은 유저 영역</td><td>src/, tests/ 구조는 강제하지 않음</td></tr>
+      <tr><td>.claude/agents/에 페르소나</td><td>Claude Code 표준 경로. 네이티브 탐색</td></tr>
+      <tr><td>.claude/rules/ · CLAUDE.md 는 유저 소유</td><td>/harness:init 은 <code>examples/</code>만 복사 제안. 이후 편집은 유저 책임 (Anthropic · OpenAI 업계 선례)</td></tr>
+      <tr><td>state/는 하네스만 수정</td><td>유저/에이전트 직접 수정 차단 (Safety)</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Config Schema Highlights</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label config">project</div>
+      <div class="card-title">Project Info</div>
+      <div class="card-body">name, type (webapp|api|library|monorepo|cli)<br>structure: source, tests<br>stack: language, framework, test_runner, database</div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">workflow</div>
+      <div class="card-title">Workflow Config</div>
+      <div class="card-body">
+        mode: <strong>auto</strong> | standard | prototype | explore (기본 standard)<br>
+        auto_detect: rules[], safety {narrow_only, promotion_requires_user, session_start_only}<br>
+        prompt_pipeline: auto_transform, feedback<br>
+        right_size.thresholds: {ac_max, files_max, loc_max} × {small, medium}<br>
+        loc_exclude, loc_multiplier, force_size_policy: upward_only
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">audit</div>
+      <div class="card-title">Audit Log (자동 판단 역추적)</div>
+      <div class="card-body">
+        <code>.harness/state/audit.jsonl</code> (append-only, flock, rotate_mb)<br>
+        events (14종): mode_auto_detected · right_size_determined · force_size_applied ·<br>
+        prompt_transformed · model_tier_escalated · gate_skipped · agent_escalation ·<br>
+        qa_invoked · qa_scope_overridden · coverage_evaluated ·<br>
+        qa_layer_halted · qa_attribution_report · qa_attribution_warning ·<br>
+        <strong>gate_bypassed</strong> (--bypass-* · --reason 필수 · 세션 sticky warning)<br>
+        스키마: {ts, session_id, event, decision, signals, rule_id, reversible, source}<br>
+        redact_fields: [prompt_body, ...] · retention_days: 90<br>
+        <em style="color:var(--text2);font-size:12px">audit.enabled=false → 판단은 계속, 기록만 중단 (관찰 포기 옵션)</em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">testing</div>
+      <div class="card-title">Testing Strategy</div>
+      <div class="card-body">coverage_target: line 80%, branch 70%<br>e2e_tool: playwright | cypress | selenium<br>platforms: [web, ios, android]<br>commands: unit, integration, e2e</div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">agents</div>
+      <div class="card-title">Agent Config</div>
+      <div class="card-body">역할별 model override<br>confidence_threshold: done 0.80, concerns 0.60</div>
+    </div>
+    <div class="card">
+      <div class="card-label knowledge">execution</div>
+      <div class="card-title">Parallel Execution</div>
+      <div class="card-body">parallel.enabled: true<br>max_worktrees: 3<br>auto_merge: true</div>
+    </div>
+    <div class="card">
+      <div class="card-label config">architecture</div>
+      <div class="card-title">Architecture Preferences</div>
+      <div class="card-body">style: clean | hexagonal | layered | custom<br>patterns: repository, cqrs, event-sourcing<br>constraints: max_deps, no_circular</div>
+    </div>
+  </div>
+
+  <h3>/harness:init Flow</h3>
+  <div class="diagram">
+    <pre class="mermaid">
+flowchart TD
+  INIT["/harness:init 실행"] --> COLLECT["프로젝트 정보 수집&lt;br/&gt;이름, 타입, 스택, 아키텍처"]
+  COLLECT --> HARNESS[".harness/ 생성&lt;br/&gt;config.yaml + state/"]
+  COLLECT --> EXAMPLES["examples/ 복사 제안&lt;br/&gt;.claude/rules/*.md.example&lt;br/&gt;CLAUDE.md.example (유저 선택)"]
+  HARNESS --> GIT[".gitignore 설정"]
+  EXAMPLES --> GIT
+  GIT --> READY["초기화 완료&lt;br/&gt;SessionStart hook 이 카탈로그 주입&lt;br/&gt;→ /harness:brainstorm 또는 /harness:spec"]
+
+  style INIT fill:#1a3050,stroke:#58a6ff,color:#e6edf3
+  style READY fill:#1a3020,stroke:#3fb950,color:#e6edf3
+    </pre>
+  </div>
+
+  <div class="insight" onclick="this.classList.toggle('open')">
+    <div class="insight-header"><span class="insight-tag">INSIGHT</span> Compact 방어: SessionStart hook 단일 경로 주입</div>
+    <div class="insight-body">
+      <strong>claude-platform-blueprint.md &sect;2 (Compact 생존 규칙) + insights/industry-harness-engineering &sect;A (단순화 원칙)</strong><br><br>
+      문제: Compact 시 미호출 스킬의 description이 소실되어 에이전트가 해당 스킬의 존재를 모르게 됨.<br>
+      해결: <strong>SessionStart hook 단일 경로</strong> (<code>scripts/hooks/session-start-context.mjs</code>)<br>
+      - compact matcher &rarr; 스킬 카탈로그 · mode/right-size · bypass_budgets · 기능 요약 재주입<br>
+      - general matcher &rarr; 신규 세션 시작 시 동일 컨텍스트 주입<br><br>
+      CLAUDE.md 는 <strong>유저 소유</strong>로 남겨두고(Anthropic · OpenAI 업계 선례), 하네스는 hook 한 경로로만 방어 &rarr; 이중 경로 유지 비용 제거.
+    </div>
+  </div>
+
+  <h3>Plugin Skills Structure</h3>
+  <div class="tree"><span class="dir">harness/skills/</span>
+├── <span class="dir">init/</span>          <span class="comment">← 프로젝트 초기 구성</span>
+├── <span class="dir">brainstorm/</span>    <span class="comment">← 아이디어 탐색</span>
+├── <span class="dir">spec/</span>          <span class="comment">← 기능 명세</span>
+├── <span class="dir">architect/</span>     <span class="comment">← 소프트웨어 아키텍처</span>
+├── <span class="dir">ux/</span>            <span class="comment">← UI/UX 설계</span>
+├── <span class="dir">plan/</span>          <span class="comment">← 구현 계획</span>
+├── <span class="dir">implement/</span>     <span class="comment">← 코드 구현</span>
+├── <span class="dir">review/</span>        <span class="comment">← 코드 리뷰</span>
+├── <span class="dir">qa/</span>            <span class="comment">← QA 테스트</span>
+├── <span class="dir">deploy/</span>        <span class="comment">← 배포</span>
+├── <span class="dir">sync/</span>          <span class="comment">← 코드↔문서 동기화</span>
+├── <span class="dir">persona-create/</span> <span class="comment">← 유저 페르소나 대화형 생성</span>
+└── <span class="dir">migrate/</span>       <span class="comment">← 마이그레이션</span>
+
+<span class="comment">각 스킬 구조:</span>
+  <span class="dir">{skill}/</span>
+  ├── <span class="file">SKILL.md</span>        <span class="comment">← 오케스트레이션 지시</span>
+  ├── <span class="dir">scripts/</span>       <span class="comment">← 결정론적 로직 (토큰 0)</span>
+  ├── <span class="dir">references/</span>    <span class="comment">← 참조 문서</span>
+  └── <span class="dir">templates/</span>     <span class="comment">← 파일 템플릿</span></div>
+</div>
+
+<!-- ═══════════════════════════ CLI REFERENCE ═══════════════════════════ -->
+<div class="panel" id="cli">
+  <h2>CLI Reference</h2>
+  <p class="section-desc">모든 <code>/harness:*</code> 스킬의 인자·플래그·Gate·Output을 한눈에. 상세: <code>06-cli-reference.md</code>.</p>
+
+  <h3>스킬 한눈 요약 (Cheat Sheet)</h3>
+  <table>
+    <thead>
+      <tr><th>스킬</th><th>동작</th><th>주요 인자/플래그</th><th>Gate 전제</th><th>핵심 Output</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>/harness:init</code></td><td>프로젝트 초기 구성</td><td><code>--mode</code>, <code>--stack</code>, <code>--from-existing</code></td><td>&mdash;</td><td><code>.harness/</code>, <code>config.yaml</code>, <code>examples/</code> (유저 선택 복사)</td></tr>
+      <tr><td><code>/harness:brainstorm</code></td><td>페르소나 기반 탐색</td><td><code>&lt;topic&gt;</code>, <code>--personas</code>, <code>--rounds</code></td><td>init</td><td><code>brainstorms/*.md</code></td></tr>
+      <tr><td><code>/harness:spec</code></td><td>기능 명세 (AC 포함)</td><td><code>&lt;domain&gt;/&lt;feature&gt;</code>, <code>--from-brainstorm</code>, <code>--edit</code></td><td>init</td><td><code>specs/**.spec.yaml</code></td></tr>
+      <tr><td><code>/harness:architect</code></td><td>시스템 아키텍처 (ADR)</td><td><code>&lt;domain&gt;/&lt;feature&gt;</code>, <code>--force-size</code></td><td>spec, ≥medium</td><td><code>decisions/nnn-*.md</code></td></tr>
+      <tr><td><code>/harness:plan</code></td><td>태스크 분해</td><td><code>&lt;domain&gt;/&lt;feature&gt;</code>, <code>--from-spec</code></td><td>G1(spec)</td><td><code>plans/**.plan.md</code></td></tr>
+      <tr><td><code>/harness:implement</code></td><td>TDD 구현</td><td><code>--step</code>, <code>--no-worktree</code>, <code>--resume</code></td><td>G1·G2</td><td>code + tests + workflow.json</td></tr>
+      <tr><td><code>/harness:review</code></td><td>병렬 리뷰 (4 reviewer)</td><td><code>--depth</code>, <code>--reviewers</code></td><td>implement</td><td><code>reviews/*-review-*.md</code></td></tr>
+      <tr><td><strong><code>/harness:qa</code></strong></td><td>다축 Coverage + QA Stack</td><td><code>--all</code>, <code>--only</code>, <code>--exclude</code>, <code>--skip</code>, <code>--force-size</code>, <code>--reason</code>, <code>--stack-mode</code></td><td>G3, review PASS</td><td>coverage-report, qa-attribution, qa-log</td></tr>
+      <tr><td><code>/harness:deploy</code></td><td>배포 (pivot)</td><td><code>&lt;target&gt;</code>, <code>--dry-run</code></td><td>G4(qa.passed)</td><td>deploys/*.md, incidents/</td></tr>
+      <tr><td><code>/harness:refactor</code> ⟲</td><td>구조 개선 (behavior-preserving)</td><td><code>&lt;domain&gt;/&lt;feature&gt;</code>, <code>--size</code>, <code>--bypass-coverage</code>, <code>--bypass-invariant</code>, <code>--reason</code></td><td>coverage ≥ threshold</td><td>refactor-log.jsonl, 보고서 (AC 동일성 증거)</td></tr>
+      <tr><td><code>/harness:sync</code></td><td>코드↔Spec 동기화 · Entropy 스윕</td><td><code>--from</code>, <code>--promote</code>, <code>--dry-run</code>, <code>--schedule &lt;daily|weekly|off&gt;</code></td><td>&mdash;</td><td>갱신된 specs/plans/tests · <code>retired_assumptions[]</code></td></tr>
+      <tr><td><code>/harness:migrate &lt;sub&gt;</code></td><td>마이그레이션 (group)</td><td><code>{init|analyze|extract-spec|gen-test}</code></td><td>서브별</td><td>migration/analysis, specs 역추출</td></tr>
+      <tr><td><code>/harness:persona &lt;sub&gt;</code></td><td>페르소나 관리 (group)</td><td><code>{create|list|edit|delete}</code></td><td>&mdash;</td><td><code>.claude/agents/*.md</code></td></tr>
+      <tr><td><code>/harness:ux</code></td><td>UI/UX 설계 (축 직교)</td><td><code>--platform</code>, <code>--a11y-level</code></td><td>spec</td><td><code>decisions/nnn-ux-*.md</code></td></tr>
+      <tr><td><code>/harness:mode</code></td><td>세션 mode 수동 전환</td><td><code>{show|set}</code>, <code>--persist</code></td><td>&mdash;</td><td>workflow.json.session.mode</td></tr>
+    </tbody>
+  </table>
+
+  <h3>/harness:qa 플래그 전체 스펙</h3>
+  <p class="section-desc">가장 복잡한 스킬. Right-Size 매트릭스 &times; CLI 플래그 &times; QA Stack mode가 직교.</p>
+  <table>
+    <thead><tr><th>플래그</th><th>용도</th><th>예시</th></tr></thead>
+    <tbody>
+      <tr><td>(없음)</td><td><code>config.testing.scope.mode</code>(기본 auto → Right-Size 매트릭스)</td><td><code>/harness:qa auth/login</code></td></tr>
+      <tr><td><code>--all</code></td><td>정의된 모든 유형 실행</td><td><code>/harness:qa --all</code></td></tr>
+      <tr><td><code>--only &lt;types&gt;</code></td><td>지정 유형만 (매트릭스 무시)</td><td><code>/harness:qa --only unit,smoke</code></td></tr>
+      <tr><td><code>--exclude &lt;types&gt;</code></td><td>기본 집합에서 제외</td><td><code>/harness:qa --exclude load,stress</code></td></tr>
+      <tr><td><code>--skip &lt;types&gt;</code></td><td><code>--exclude</code> 별칭 (하위호환)</td><td><code>/harness:qa --skip load</code></td></tr>
+      <tr><td><code>--force-size &lt;s&gt;</code></td><td>이번 호출 1회만 right-size (workflow.json 불변)</td><td><code>/harness:qa --force-size large</code></td></tr>
+      <tr><td><code>--reason "..."</code></td><td>필수 skip 시 사유 (audit + qa-log 기록)</td><td><code>/harness:qa --skip load --reason "infra maint"</code></td></tr>
+      <tr><td><code>--stack-mode &lt;m&gt;</code></td><td>QA Stack 실행 모드 1회 override</td><td><code>/harness:qa --stack-mode sequential_bottom_up</code></td></tr>
+    </tbody>
+  </table>
+  <p style="font-size:12px;color:var(--text2);margin-top:8px">
+    <strong>우선순위:</strong> <code>--only</code> &gt; <code>--all</code> &gt; <code>--exclude</code>/<code>--skip</code>. <code>--force-size</code>는 매트릭스 재계산, <code>--stack-mode</code>는 순서만 변경.<br>
+    <strong>Exit codes:</strong> 0=G4 PASS · 1=FAIL · 2=<code>block_deploy</code> 정책상 차단.<br>
+    <strong>정책:</strong> <code>skip_required_policy: block_deploy | warn | allow</code> &mdash; 필수 유형 skip 시 G4 거동 제어.
+  </p>
+
+  <h3>플래그 네이밍 일관성</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label quality">--force-*</div>
+      <div class="card-title">파라미터 상향 override</div>
+      <div class="card-body">Iron Law 우회 아님. <strong>upward_only</strong>.<br>등장: <code>architect --force-size</code>, <code>qa --force-size</code><br><em style="color:var(--text2);font-size:12px">Audit: force_size_applied</em></div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">--from-*</div>
+      <div class="card-title">상류 산출물 참조</div>
+      <div class="card-body"><code>spec --from-brainstorm</code>, <code>plan --from-spec</code>, <code>sync --from &lt;commit&gt;</code></div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">--reason "..."</div>
+      <div class="card-title">정책 우회 시 사유 기록 강제</div>
+      <div class="card-body">생략 시 <code>block_deploy</code> 정책상 BLOCK.<br>audit.jsonl + <code>.harness/state/qa-log.jsonl</code> 양쪽 기록.</div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">--dry-run</div>
+      <div class="card-title">실제 변경 없이 제안/점검</div>
+      <div class="card-body">등장: <code>deploy --dry-run</code>, <code>sync --dry-run</code></div>
+    </div>
+    <div class="card" style="border-color:rgba(248,81,73,0.4);background:rgba(248,81,73,0.04)">
+      <div class="card-label" style="background:rgba(248,81,73,0.15);color:#f85149">--bypass-* (Escape Hatch)</div>
+      <div class="card-title">Safety/Gate 의도적 우회</div>
+      <div class="card-body">
+        Claude Code <code>--dangerously-skip-permissions</code> 대응. 이름이 아닌 <strong>구조</strong>로 위험 강제.<br>
+        계열: <code>--bypass-gates &lt;g1,...&gt;</code> · <code>--bypass-review</code> · <code>--bypass-qa</code> · <code>--bypass-deploy-gate</code><br>
+        <strong>3중 안전장치:</strong> ① <code>--reason</code> 필수 (생략 시 exit 2) ② <code>gate_bypassed</code> audit ③ 세션 sticky warning<br>
+        <strong>불가변:</strong> 파괴적 bash · force-push · <code>.harness/state/</code> 편집 · prototype deploy<br>
+        <em style="color:var(--text2);font-size:12px">상세: 03-workflow.md §1.9 · 06-cli-reference.md §3.1</em>
+      </div>
+    </div>
+  </div>
+
+  <h3>전형적 호출 시퀀스</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label workflow">Domain B (Standard 신규)</div>
+      <div class="card-title">정방향 풀 파이프라인</div>
+      <div class="card-body" style="font-family:var(--mono);font-size:12px;line-height:1.8">
+        /harness:init<br>
+        /harness:brainstorm "..."<br>
+        /harness:spec auth/login --from-brainstorm ...<br>
+        /harness:architect auth/login &nbsp;<em style="color:var(--text2)"># medium+</em><br>
+        /harness:plan auth/login<br>
+        /harness:implement auth/login<br>
+        /harness:review auth/login<br>
+        /harness:qa auth/login<br>
+        /harness:deploy staging
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">Domain B (Prototype)</div>
+      <div class="card-title">게이트 생략 + 승격</div>
+      <div class="card-body" style="font-family:var(--mono);font-size:12px;line-height:1.8">
+        /harness:init --mode prototype<br>
+        /harness:implement some-idea<br>
+        <em style="color:var(--text2)"># 반복 실험</em><br>
+        /harness:sync --promote<br>
+        /harness:review → qa → deploy
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">Domain C (Migration)</div>
+      <div class="card-title">기존 프로젝트 도입</div>
+      <div class="card-body" style="font-family:var(--mono);font-size:12px;line-height:1.8">
+        /harness:migrate init<br>
+        /harness:migrate analyze --depth deep<br>
+        /harness:migrate extract-spec src/**<br>
+        /harness:migrate gen-test auth/login<br>
+        <em style="color:var(--text2)"># 이후 Domain B 합류</em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">Maintenance Loop ⟲</div>
+      <div class="card-title">Refactor (behavior-preserving)</div>
+      <div class="card-body" style="font-family:var(--mono);font-size:12px;line-height:1.8">
+        /harness:refactor auth/login<br>
+        <em style="color:var(--text2)"># small → implementer 직접</em><br><br>
+        /harness:refactor payments/** --size large<br>
+        <em style="color:var(--text2)"># large → architect 경계 재설계</em><br><br>
+        <em style="color:var(--text2)"># 커버리지 부족 우회</em><br>
+        /harness:refactor legacy/cart<br>
+        &nbsp;&nbsp;--bypass-coverage<br>
+        &nbsp;&nbsp;--reason "migrate Lv3 연계"
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">One-shot 탐색</div>
+      <div class="card-title">QA 플래그 활용</div>
+      <div class="card-body" style="font-family:var(--mono);font-size:12px;line-height:1.8">
+        /harness:qa --only smoke<br>
+        /harness:qa --force-size large<br>
+        /harness:qa --stack-mode sequential_bottom_up<br>
+        &nbsp;&nbsp;&nbsp;&nbsp;--reason "계층 귀인 필요"
+      </div>
+    </div>
+    <div class="card" style="border-color:rgba(248,81,73,0.4)">
+      <div class="card-label" style="background:rgba(248,81,73,0.15);color:#f85149">Escape Hatch</div>
+      <div class="card-title">긴급/실험 우회 (3중 안전장치)</div>
+      <div class="card-body" style="font-family:var(--mono);font-size:12px;line-height:1.8">
+        <em style="color:var(--text2)"># 핫픽스 배포 — QA 우회</em><br>
+        /harness:deploy production<br>
+        &nbsp;&nbsp;--bypass-qa<br>
+        &nbsp;&nbsp;--reason "P0 incident 2026-04-13"<br><br>
+        <em style="color:var(--text2)"># 실험 — spec 없이</em><br>
+        /harness:implement scratch/idea<br>
+        &nbsp;&nbsp;--bypass-gates g1<br>
+        &nbsp;&nbsp;--reason "아이디어 검증"
+      </div>
+    </div>
+  </div>
+
+  <h3>Scripts Reference</h3>
+  <p class="section-desc">
+    하네스 플러그인 내부의 결정론적 <code>.mjs</code> 스크립트. <strong>LLM을 쓰지 않고</strong> 순수 로직으로 동작 &mdash; 토큰 비용 0.
+    Hook/Skill/CLI 진입점에서 호출된다. 상세: <code>06-cli-reference.md §5</code>.
+  </p>
+
+  <h4 style="margin-top:16px">공용 스크립트 (<code>scripts/</code>)</h4>
+  <div class="cards">
+    <div class="card">
+      <div class="card-label safety">① guardrails/</div>
+      <div class="card-title">Safety Layer</div>
+      <div class="card-body" style="font-size:12px">
+        <code>block-destructive.mjs</code> &mdash; 파괴적 bash 차단 (exit 2)<br>
+        <code>block-force-push.mjs</code> &mdash; force-push 차단<br>
+        <code>protect-harness.mjs</code> &mdash; <code>.harness/state/</code> 직접 편집 차단<br>
+        <em style="color:var(--text2)">호출: PreToolUse (Bash|Edit|Write)</em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">② gates/</div>
+      <div class="card-title">Gate 엔진</div>
+      <div class="card-body" style="font-size:12px">
+        <code>gate-engine.mjs</code> &mdash; G1~G5 일괄 평가 + mode Early-Exit<br>
+        <em style="color:var(--text2)">호출: UserPromptSubmit</em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label agent">③ prompt/</div>
+      <div class="card-title">Prompt Pipeline</div>
+      <div class="card-body" style="font-size:12px">
+        <code>quality-check.mjs</code> &mdash; 모호성/스코프/누락 검사<br>
+        <code>auto-transform.mjs</code> &mdash; 프롬프트 자동변환 (opt-in)<br>
+        <em style="color:var(--text2)">호출: UserPromptSubmit</em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">④ state/</div>
+      <div class="card-title">State & Audit</div>
+      <div class="card-body" style="font-size:12px">
+        <code>load-state.mjs</code> &mdash; 세션 초기화<br>
+        <code>update-workflow.mjs</code> &mdash; phase/gates_passed 갱신<br>
+        <code>compact-recovery.mjs</code> &mdash; Compact 후 Event stream fold<br>
+        <code>audit-append.mjs</code> &mdash; <strong>공용 emitter</strong> (flock + rotate)<br>
+        <em style="color:var(--text2)">호출: SessionStart / Stop / 모든 이벤트</em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label workflow">⑤ workflow/</div>
+      <div class="card-title">Mode & Size</div>
+      <div class="card-body" style="font-size:12px">
+        <code>determine-mode.mjs</code> &mdash; 3개 RULE → session mode (mode=auto)<br>
+        <code>determine-size.mjs</code> &mdash; AC/files/LOC 3축 AND → small/medium/large<br>
+        <em style="color:var(--text2)">호출: SessionStart · skill 진입</em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label quality">⑥ qa/</div>
+      <div class="card-title">QA Stack · Attribution</div>
+      <div class="card-body" style="font-size:12px">
+        <code>stack-runner.mjs</code> &mdash; 계층 순차 실행 (Infra→DB→API→UI)<br>
+        <code>attribution.mjs</code> &mdash; 실패 귀인 → <code>qa-attribution.json</code><br>
+        <code>mock-ratio.mjs</code> &mdash; <code>mock_guard</code> 위반 탐지<br>
+        <code>coverage-trend.mjs</code> &mdash; iteration 간 각 축 델타<br>
+        <em style="color:var(--text2)">호출: /harness:qa 내부</em>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-label safety">⑦ validators/</div>
+      <div class="card-title">Side-effect & Coverage</div>
+      <div class="card-body" style="font-size:12px">
+        <code>check-side-effects.mjs</code> &mdash; 기존 test 깨짐 감지<br>
+        <code>doc-coverage.mjs</code> &mdash; Spec↔Plan/Test 누락 경고<br>
+        <code>check-coverage.mjs</code> &mdash; AC 매핑 → <code>coverage.json</code> 갱신<br>
+        <em style="color:var(--text2)">호출: PostToolUse · plan/implement 진입</em>
+      </div>
+    </div>
+  </div>
+
+  <h4 style="margin-top:20px">스킬별 스크립트 (<code>skills/*/scripts/</code>)</h4>
+  <table>
+    <thead><tr><th>스킬</th><th>주요 스크립트 (역할 요약)</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><code>/harness:init</code></td>
+        <td><code>scaffold-harness</code> (디렉토리 구조) · <code>gen-config</code> (유저 답변 → <code>config.yaml</code> 렌더) · <code>copy-examples</code> (<code>examples/</code> → <code>.claude/rules/</code>, <code>CLAUDE.md</code> 유저 동의 복사)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:brainstorm</code></td>
+        <td><code>load-personas</code> (서브에이전트 목록) · <code>suggest-personas</code> (주제·타입 기반 추천) · <code>summarize-session</code> (합의점/쟁점 정리)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:spec</code></td>
+        <td><code>validate-spec</code> (YAML·AC id 유일성) · <code>check-testability</code> (<code>testable</code> 필수) · <code>extract-criteria</code> (→ coverage.json)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:architect</code></td>
+        <td><code>check-constraints</code> (<code>config.architecture</code> 대비 ADR) · <code>dep-graph</code> (순환/레이어 위반 감지)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:ux</code></td>
+        <td><code>check-accessibility</code> (WCAG 2.1 AA 명세 점검)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:plan</code></td>
+        <td><code>gate-check</code> (G1) · <code>query-solutions</code> (Knowledge Layer: 유사 솔루션 상위 3건 컨텍스트 주입) · <code>decompose</code> (AC → 태스크 분해 힌트) · <code>validate-plan</code> (step↔AC 양방향 매핑)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:implement</code></td>
+        <td><code>gate-check</code> (G1·G2) · <code>gen-test-skeleton</code> (AC → FAIL 상태 test) · <code>run-tests</code> · <code>check-side-effects</code> · <code>coverage-report</code></td>
+      </tr>
+      <tr>
+        <td><code>/harness:review</code></td>
+        <td><code>gate-check</code> · <code>diff-analyzer</code> (변경 규모 → depth 결정) · <code>collect-verdicts</code> (BLOCK 1개라도 → 전체 BLOCK)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:qa</code></td>
+        <td><code>gate-check</code> · <code>regression-runner</code> (전체 suite 재실행) · <code>coverage-threshold</code> (8축 임계) · <code>report-gen</code></td>
+      </tr>
+      <tr>
+        <td><code>/harness:deploy</code></td>
+        <td><code>gate-check</code> (G4 + mode≠prototype)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:refactor</code></td>
+        <td><code>snapshot</code> (spec/test hash 베이스라인) · <code>coverage-check</code> (pre-gate) · <code>strategist-dispatch</code> (Right-Size) · <code>move-runner</code> (매 move 후 test GREEN 확인, RED 시 rollback) · <code>verify-spec-unchanged</code> · <code>verify-tests-identical</code> · <code>collect-verdicts</code> (quality+performance만)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:sync</code></td>
+        <td><code>detect-drift</code> (last-sync-commit↔HEAD) · <code>extract-changes</code> (spec 영향 추출) · <code>update-specs</code> (역방향 갱신, 유저 승인) · <code>entropy-sweep</code> (retired 가정 점검, OpenAI Lopopolo) · <code>schedule-register</code> (<code>--schedule</code> cron 등록)</td>
+      </tr>
+      <tr>
+        <td><code>/harness:persona &lt;sub&gt;</code></td>
+        <td><code>dispatch</code> (git-style 라우팅) · <code>create</code>/<code>list</code>/<code>pick-template</code>/<code>render-persona</code></td>
+      </tr>
+      <tr>
+        <td><code>/harness:migrate &lt;sub&gt;</code></td>
+        <td><code>dispatch</code> · <code>init</code>/<code>analyze</code>/<code>extract-spec</code>/<code>gen-test</code> · <code>detect-stack</code> (기존 코드 스택 감지) · <code>scaffold-harness</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h4 style="margin-top:20px">호출 시점 매트릭스</h4>
+  <table>
+    <thead><tr><th>시점</th><th>Hook 이벤트</th><th>호출 스크립트</th></tr></thead>
+    <tbody>
+      <tr><td>세션 시작</td><td><code>SessionStart</code></td><td><code>state/load-state</code>, <code>workflow/determine-mode</code> (auto), <code>state/compact-recovery</code> (compact 감지), <code>hooks/session-start-context</code> (스킬 카탈로그·워크플로우 요약 주입)</td></tr>
+      <tr><td>프롬프트 입력</td><td><code>UserPromptSubmit</code></td><td><code>gates/gate-engine</code>, <code>prompt/quality-check</code>, <code>prompt/auto-transform</code></td></tr>
+      <tr><td>Bash 실행 전</td><td><code>PreToolUse (Bash)</code></td><td><code>guardrails/block-destructive</code>, <code>guardrails/block-force-push</code></td></tr>
+      <tr><td>파일 편집 전</td><td><code>PreToolUse (Edit|Write)</code></td><td><code>guardrails/protect-harness</code></td></tr>
+      <tr><td>파일 편집 후</td><td><code>PostToolUse (Edit|Write)</code></td><td><code>validators/check-side-effects</code></td></tr>
+      <tr><td>스킬 진입</td><td>(Skill 내부)</td><td><code>skills/{name}/scripts/gate-check</code>, <code>workflow/determine-size</code></td></tr>
+      <tr><td>스킬 완료</td><td><code>Stop</code></td><td><code>state/update-workflow</code></td></tr>
+      <tr><td>QA 단계</td><td>(qa 내부)</td><td><code>qa/stack-runner</code> → <code>qa/mock-ratio</code> → <code>qa/attribution</code> → <code>qa/coverage-trend</code></td></tr>
+      <tr><td>Audit emit</td><td>(공용)</td><td><code>state/audit-append</code> (flock + rotate)</td></tr>
+    </tbody>
+  </table>
+
+  <div style="margin-top:14px;padding:12px 14px;border-left:3px solid var(--accent);background:var(--surface2);border-radius:4px;font-size:12px;line-height:1.7">
+    <strong>원칙</strong> &mdash;
+    <strong>①</strong> LLM 의존 금지 (순수 Node.js, 토큰 0) ·
+    <strong>②</strong> 단일 책임 (한 스크립트 = 한 결정) ·
+    <strong>③</strong> Audit은 반드시 <code>state/audit-append.mjs</code> 경유 ·
+    <strong>④</strong> cross-platform (Node ≥ 20, macOS/Linux/WSL) ·
+    <strong>⑤</strong> skill-local vs 공용 분리 (공용은 <code>scripts/</code> 루트, skill 전용은 <code>skills/{name}/scripts/</code>).
+  </div>
+
+  <h3 style="margin-top:28px">에러 &amp; 트러블슈팅</h3>
+  <table>
+    <thead><tr><th>증상</th><th>원인</th><th>대응</th></tr></thead>
+    <tbody>
+      <tr><td><code>exit 2: Spec이 없습니다</code></td><td>G1 실패</td><td><code>/harness:spec</code> 선행</td></tr>
+      <tr><td><code>exit 2: Plan이 없습니다</code></td><td>G2 실패</td><td><code>/harness:plan</code> 선행</td></tr>
+      <tr><td><code>exit 2: Test가 없습니다</code></td><td>G3 실패</td><td>implement에서 Test-First 진행</td></tr>
+      <tr><td><code>exit 2: deploy blocked — prototype</code></td><td>Prototype Deploy 차단</td><td><code>/harness:sync --promote</code>로 Standard 승격</td></tr>
+      <tr><td><code>block_deploy — 필수 QA 누락</code></td><td><code>skip_required_policy</code> 정책</td><td>누락 유형 실행 또는 정책 완화</td></tr>
+      <tr><td><code>qa_attribution_warning</code> emit</td><td>상위가 하위 mock 사용</td><td>mock 제거 또는 <code>mock_guard.enforce: warn</code></td></tr>
+      <tr><td><code>exit 2: --bypass-* requires --reason</code></td><td>우회 사유 누락</td><td><code>--reason "&lt;명확한 사유&gt;"</code> 동반 (audit 영구 기록)</td></tr>
+      <tr><td>세션 sticky warning 지속</td><td>이전 호출의 <code>--bypass-*</code> 가 <code>bypass_stack[]</code> 에 누적</td><td>새 세션 시작 또는 <code>/harness:sync --promote</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+</div><!-- /content -->
+
+<script>
+  // Mermaid init (manual run so we can re-render on tab switch + avoid display:none measurement issues)
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: 'dark',
+    themeVariables: {
+      primaryColor: '#1a3050',
+      primaryTextColor: '#e6edf3',
+      primaryBorderColor: '#58a6ff',
+      lineColor: '#8b949e',
+      secondaryColor: '#21262d',
+      tertiaryColor: '#161b22',
+      fontFamily: '-apple-system, BlinkMacSystemFont, Segoe UI, Helvetica, Arial, sans-serif',
+      fontSize: '13px'
+    },
+    flowchart: { curve: 'basis', padding: 16 },
+    sequence: { mirrorActors: false, actorMargin: 60 }
+  });
+
+  // Snapshot the original mermaid source (textContent decodes &lt;br/&gt; to literal <br/>)
+  document.querySelectorAll('pre.mermaid').forEach((el, i) => {
+    el.dataset.mermaidSource = el.textContent.trim();
+    el.dataset.mermaidId = 'mmd-' + i;
+  });
+
+  async function renderPanel(panelId) {
+    const panel = document.getElementById(panelId);
+    if (!panel) return;
+    const blocks = panel.querySelectorAll('pre.mermaid');
+    for (const el of blocks) {
+      if (el.dataset.rendered === '1') continue;
+      try {
+        const { svg } = await mermaid.render(el.dataset.mermaidId + '-svg', el.dataset.mermaidSource);
+        el.innerHTML = svg;
+        el.dataset.rendered = '1';
+      } catch (err) {
+        el.innerHTML = '<div style="color:#f85149;font-family:monospace;font-size:12px;white-space:pre-wrap">Mermaid error: ' + (err && err.message ? err.message : err) + '</div>';
+      }
+    }
+  }
+
+  // Tab navigation — render on activation
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      const panelId = tab.dataset.tab;
+      document.getElementById(panelId).classList.add('active');
+      renderPanel(panelId);
+    });
+  });
+
+  // Initial render for the active panel
+  const initialTab = document.querySelector('.tab.active');
+  if (initialTab) renderPanel(initialTab.dataset.tab);
+</script>
+</body>
+</html>

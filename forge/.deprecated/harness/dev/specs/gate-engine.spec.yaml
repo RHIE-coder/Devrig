@@ -1,0 +1,44 @@
+id: SPEC-gate-engine
+name: Gate Engine
+version: 1
+layer: workflow
+description: >
+  G1~G6 게이트 통합 엔진.
+  mode별 early-exit, bypass 감지, audit emit.
+
+acceptance_criteria:
+  - id: AC-G01
+    desc: "standard 모드에서 spec 없이 /harness:implement → exit(2)"
+    testable: "mode=standard, spec 없음, /harness:implement → exit(2) + G1 안내"
+
+  - id: AC-G02
+    desc: "prototype 모드에서 spec 없이 /harness:implement → 통과"
+    testable: "mode=prototype, spec 없음, /harness:implement → exit(0)"
+
+  - id: AC-G03
+    desc: "explore 모드에서 모든 게이트 skip"
+    testable: "mode=explore, 어떤 스킬이든 → exit(0)"
+
+  - id: AC-G04
+    desc: "--bypass-gates 사용 시 통과 + audit 정보 출력"
+    testable: "bypass 플래그 + spec 없는 implement → exit(0) + stdout에 gate_bypassed JSON"
+
+  - id: AC-G05
+    desc: "G6: spec 존재 + plan 빈 파일 → exit(2)"
+    testable: "spec 존재, plan 파일 < 50 bytes → exit(2) + IL-7 안내"
+
+  - id: AC-G06
+    desc: "G6: spec 존재 + plan에 실질 내용 → 통과"
+    testable: "spec 존재, plan 파일 >= 50 bytes → exit(0)"
+
+  - id: AC-G07
+    desc: "/harness:deploy + qa.passed=false → exit(2)"
+    testable: "mode=standard, qa.passed=false, /harness:deploy → exit(2) + G4 안내"
+
+  - id: AC-G08
+    desc: "/harness:* 아닌 프롬프트 → 게이트 해당 없음"
+    testable: "일반 프롬프트 → exit(0)"
+
+  - id: AC-G09
+    desc: ".harness/ 미존재 → 조용히 통과"
+    testable: ".harness/ 없음 → exit(0)"
