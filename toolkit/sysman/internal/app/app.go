@@ -190,8 +190,10 @@ func (m Model) renderDetail() string {
 	}
 
 	head := detailKeyStyle.Render(fmt.Sprintf("PPID %d", ppid))
-	if ppid == 1 {
-		head += detailHintStyle.Render(" (orphan·터미널 없음)")
+	if process.LikelyOrphan(ppid, cmdline) {
+		head += treeOrphanStyle.Render(" (고아 가능성·launchd 직속)")
+	} else if ppid == 1 {
+		head += detailHintStyle.Render(" (launchd 직속)")
 	}
 	if name != "" {
 		head += detailStyle.Render(" · " + name)
@@ -238,8 +240,10 @@ func (m Model) renderTree() string {
 			prefix += "└─ "
 		}
 		node := fmt.Sprintf("%s%d %s", prefix, p.PID, p.Name)
-		if p.PPID == 1 && i == len(m.treeChain)-2 {
-			node += treeOrphanStyle.Render("  (orphan)")
+		if process.LikelyOrphan(p.PPID, p.Cmdline) {
+			node += treeOrphanStyle.Render("  (고아 가능성)")
+		} else if p.PPID == 1 {
+			node += detailHintStyle.Render("  (launchd 직속)")
 		}
 		line := treeNodeStyle.Render(node)
 		if c := strings.TrimSpace(p.Cmdline); c != "" {

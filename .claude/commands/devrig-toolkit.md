@@ -19,7 +19,7 @@ allowed-tools: Bash(devrig:*), Bash(~/go/bin/devrig:*), Read
    각 항목: `port, addr, pid, ppid, process, project, cwd, cmdline, cpu, mem, started, uptime_sec`.
    (`started`=RFC3339 시작시각, `uptime_sec`=실행 경과 초 → "며칠째 떠 있는지", "언제 띄웠는지" 답에 사용)
    - `cmdline` = **어떻게 실행했는지**(전체 실행 커맨드라인). "이 서버 어떻게 띄운 거야?" 질문에 그대로 사용.
-   - `ppid` = 부모 PID. **`ppid`가 1이면 띄운 터미널이 이미 사라진 "고아"** 라는 뜻 → 그 터미널에서 Ctrl+C로 못 죽이니 pid/포트로 죽여야 함을 안내.
+   - `ppid` = 부모 PID. ⚠️ macOS에선 **프로세스의 약 2/3가 `ppid 1`(launchd 직속)** 입니다(GUI 앱·시스템 데몬 포함) → **`ppid 1` 자체는 고아가 아님.** 유저가 터미널에서 띄운 프로세스(`node`·`python`·`npm`·`bun` 등, 경로가 `/System`·`/Applications`·`/Library`·`/usr`가 **아닌** 것)가 `ppid 1`일 때만 "띄운 터미널이 죽어 launchd로 입양된 **고아 가능성**" → 그땐 Ctrl+C로 못 죽이니 pid/포트로 죽이라고 안내. 단정하지 말고 "가능성"으로 표현.
    `devrig`이 PATH에 없으면 `~/go/bin/devrig` 을 사용하세요.
 
 2. **전체 프로세스 스냅샷 (CPU 내림차순, JSON)**
@@ -40,7 +40,7 @@ allowed-tools: Bash(devrig:*), Bash(~/go/bin/devrig:*), Read
    해당 `pid`부터 루트(`launchd`, PID 1)까지 **조상 체인을 위로 올라가며** 배열로 반환합니다.
    배열[0]=대상 프로세스, 마지막=최상위 조상. 각 노드: `pid, ppid, name, cmdline, ...`.
    - 답할 때는 들여쓰기 트리(`└─`)로 **누가 무엇의 부모인지** 보여주고, 각 노드의 `cmdline`으로 **어떻게 실행됐는지** 곁들이세요.
-   - 체인이 짧고 바로 `ppid 1`로 끝나면 → 띄운 터미널이 닫혀 OS가 `launchd`로 reparent(입양)한 **고아**. 그래서 부모와 무관하게 계속 돈다고 설명.
+   - 체인은 거의 항상 `launchd`(PID 1)에서 끝납니다 — 이건 정상이지 고아 신호가 아님. launchd 직속 노드가 **시스템/앱이 아닌 유저 프로세스**(`node`·`npm`·`python` 등, 경로가 `/System`·`/Applications`·`/Library`·`/usr`가 아님)일 때만 → 터미널이 닫혀 입양된 **고아 가능성**으로(단정 말고) 설명. `/System`·`/Applications`·`/Library`·`/usr` 경로의 launchd 직속은 OS가 의도적으로 띄운 정상 프로세스.
 
 4. **현재 TUI가 포커스 중인 항목** — 사용자가 "이거", "지금 가리키는", "선택한" 이라고 하면
    상태 파일을 읽으세요 (`$XDG_STATE_HOME` 우선, 없으면 아래 경로):

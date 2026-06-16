@@ -94,7 +94,7 @@ func TestAncestryOverlay(t *testing.T) {
 		"./child --serve", // launch command shown in the tree
 		"npm run dev",
 		"launchd",
-		"orphan",      // starter's PPID is 1 → reparented orphan marker
+		"고아 가능성",   // starter (PPID 1, user process) flagged as a likely orphan
 		"esc/t 닫기", // close hint
 	} {
 		if !strings.Contains(out, want) {
