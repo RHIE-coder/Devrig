@@ -35,33 +35,52 @@ func List(root string) error {
 	return w.Flush()
 }
 
-// Run executes a tool's run command in its own directory, inheriting the
-// terminal so interactive TUIs work transparently. Any extra args are appended
-// to the run command and thus forwarded to the tool (e.g. `--json ports`).
-//
-// For Go tools launched via `go run` (the toolkit default), Run takes a fast
-// path: it builds a cached binary once and execs that. `go run` relinks a
-// throwaway binary on *every* launch — the visible ~1-2s stall before the TUI
-// appears — whereas a cached `go build` skips the relink when nothing changed
-// (Go's build cache keeps it correct), so repeat launches are a bare exec.
+// Run executes a tool in its own directory, inheriting the terminal so
+// interactive TUIs work transparently. Any extra args are forwarded to the tool
+// (e.g. `--json ports`). See Prepare for the `go run` fast path.
 func Run(root, name string, extra []string) error {
-	m, err := manifest.Find(root, name)
+	cmd, err := Prepare(root, name, extra)
 	if err != nil {
 		return err
 	}
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	return cmd.Run()
+}
+
+// Prepare resolves a tool to a ready-to-run *exec.Cmd (directory set, stdio
+// left for the caller to wire). The returned command can be run directly or
+// handed to tea.ExecProcess so a TUI can launch it without flashing the bare
+// terminal.
+//
+// For Go tools launched via `go run` (the toolkit default), Prepare builds a
+// cached binary and returns a command that execs it. `go run` relinks a
+// throwaway binary on *every* launch — the visible ~1-2s stall before the TUI
+// appears — whereas a cached `go build` skips the relink when nothing changed
+// (Go's build cache keeps it correct), so repeat launches are a bare exec.
+func Prepare(root, name string, extra []string) (*exec.Cmd, error) {
+	m, err := manifest.Find(root, name)
+	if err != nil {
+		return nil, err
+	}
 	if m.Run == "" {
-		return fmt.Errorf("%s: no 'run' command defined in tool.yaml", name)
+		return nil, fmt.Errorf("%s: no 'run' command defined in tool.yaml", name)
 	}
 
 	if bin, ok := cachedGoBinary(m); ok {
-		return execBin(m.Dir, bin, extra)
+		cmd := exec.Command(bin, extra...)
+		cmd.Dir = m.Dir
+		return cmd, nil
 	}
 
 	command := m.Run
 	if len(extra) > 0 {
 		command += " " + strings.Join(extra, " ")
 	}
-	return execIn(m.Dir, command)
+	cmd := exec.Command("sh", "-c", command)
+	cmd.Dir = m.Dir
+	return cmd, nil
 }
 
 // cachedGoBinary builds a Go tool into a per-tool cached binary and returns its
@@ -94,12 +113,12 @@ func cachedGoBinary(m *manifest.Manifest) (bin string, ok bool) {
 	}
 
 	// `go build` recompiles only changed packages and skips the relink when the
-	// output is already current, so this is cheap on repeat launches. Build
-	// diagnostics go to stderr to keep stdout clean for headless --json callers.
+	// output is already current, so this is cheap on repeat launches. Output is
+	// discarded (go build is silent on success) so it never scribbles over a
+	// caller's TUI; on failure we fall back to the run command, which surfaces
+	// the compile error itself.
 	build := exec.Command("go", "build", "-o", bin, ".")
 	build.Dir = m.Dir
-	build.Stdout = os.Stderr
-	build.Stderr = os.Stderr
 	if err := build.Run(); err != nil {
 		return "", false
 	}
@@ -152,17 +171,6 @@ func Doctor(root, name string) error {
 // execIn runs a shell command in dir, wiring the parent's stdio through.
 func execIn(dir, command string) error {
 	cmd := exec.Command("sh", "-c", command)
-	cmd.Dir = dir
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	return cmd.Run()
-}
-
-// execBin runs a prebuilt binary in dir with extra args, wiring the parent's
-// stdio through so interactive TUIs work transparently.
-func execBin(dir, bin string, extra []string) error {
-	cmd := exec.Command(bin, extra...)
 	cmd.Dir = dir
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

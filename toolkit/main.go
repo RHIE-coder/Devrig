@@ -8,6 +8,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"golang.org/x/term"
@@ -92,14 +93,12 @@ func interactive(root string) error {
 		return runner.List(root)
 	}
 
-	name, err := menu.Select(tools)
-	if err != nil {
-		return err
-	}
-	if name == "" {
-		return nil // user quit without choosing
-	}
-	return runner.Run(root, name, nil)
+	// The picker builds and launches the choice in place (via tea.ExecProcess),
+	// so the build happens behind its loading screen instead of on the bare
+	// terminal between the menu closing and the tool's UI opening.
+	return menu.Select(tools, func(name string) (*exec.Cmd, error) {
+		return runner.Prepare(root, name, nil)
+	})
 }
 
 func printUsage() {
