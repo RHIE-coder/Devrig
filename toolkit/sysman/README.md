@@ -13,7 +13,9 @@
   - `k` 종료(SIGTERM) · `K` 강제 종료(SIGKILL, SIGTERM 무시하는 데몬용) · `r` 즉시 갱신 · `/` 필터
 - **Processes** — 실행 중인 전체 프로세스를 CPU 사용량 순으로 표시(PID/NAME/USER/STAT/AGE/CPU%/MEM%), 2초마다 자동 갱신, `k`로 종료, `/` 필터
 - **System** *(macOS 전용)* — OS 유지보수 유틸리티. macOS에서만 탭이 나타나며 다른 OS에서는 숨겨집니다.
-  - **Spotlight 색인 복구**: 전 볼륨(`mdutil -s -a`) 색인 상태를 보고, 손상 시 `[e]`로 **각 저장소(`/` + `/System/Volumes/Data`)를 `-i off → -X(디렉터리 제거) → -i on`** 으로 리셋해 처음부터 재색인. `/`만 보면 "enabled"여도 앱이 사는 **Data 볼륨**이 `Error: unknown indexing state`로 깨져 있는 경우(앱이 있는데 Spotlight 검색에 안 잡히는 증상)가 있는데, `/`와 Data는 **별개 저장소**라 둘 다 리셋해야 합니다. `-E -a`는 쓰지 않습니다 — raw 마운트(Data·Preboot)에 erase는 "invalid operation"으로 실패(`-i`·`-X`는 유효)
+  - **Spotlight 색인 복구**: 전 볼륨(`mdutil -s -a`) 색인 상태를 보고, 손상 시 `[e]`로 `mdutil -E /` (루트 erase & rebuild)를 실행. `/`만 보면 "enabled"여도 앱이 사는 **Data 볼륨**이 `Error: unknown indexing state`인 경우(앱이 있는데 Spotlight에 안 잡히는 증상)를 `-s -a`로 잡아냅니다.
+    - erase는 `/`에만 적용합니다 — raw 마운트(`/System/Volumes/Data`·Preboot)에는 `-i`/`-E`가 root로도 "invalid operation"으로 거부됩니다.
+    - **단, Data 볼륨이 unknown/invalid로 wedge된 경우 mdutil로는 재색인을 못 띄웁니다.** 이때는 **재부팅**(부팅 시 자동 재구성) 또는 **시스템 설정 > Spotlight 개인정보 보호에서 디스크 추가→제거**가 해결책 — UI가 손상 감지 시 이 안내를 표시합니다
   - **잠자기 방지 토글**: `pmset disablesleep` 값을 확인하고 `[s]`로 ON/OFF
   - 두 작업 모두 root 권한이 필요해 **osascript 네이티브 인증 대화상자**로 승격합니다(TUI가 비밀번호를 직접 받지 않음). 색인 재구성은 되돌릴 수 없는 작업이라 실행 전 `y/n` 확인을 받습니다
 

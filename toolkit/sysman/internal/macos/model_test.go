@@ -81,7 +81,7 @@ func TestViewRendersStates(t *testing.T) {
 		SleepKnown:       true,
 	}})
 	out := m.View()
-	for _, want := range []string{"Spotlight 색인", "손상 감지", "잠자기 방지", "[e]", "[s]"} {
+	for _, want := range []string{"Spotlight 색인", "손상/점검 필요", "재부팅", "잠자기 방지", "[e]", "[s]"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("loaded view missing %q in:\n%s", want, out)
 		}

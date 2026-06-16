@@ -56,31 +56,18 @@ func readStatus() (Status, error) {
 	return st, nil
 }
 
-// rebuildVolumes are the two Spotlight stores on a modern (APFS) Mac: the
-// read-only System volume ("/") and the Data volume where /Applications and
-// /Users live. The corruption that hides apps from search is on the Data store,
-// and "/" alone does NOT cover it — they are separate stores, so both are reset.
-var rebuildVolumes = []string{"/", "/System/Volumes/Data"}
-
-// rebuildSpotlight resets the Spotlight index per volume: disable indexing,
-// remove the (often corrupt/stuck) index directory with -X, then re-enable so
-// it rebuilds from scratch — the reliable fix when a volume is stuck in
-// "unknown indexing state" and apps go missing from search.
+// rebuildSpotlight erases and rebuilds the Spotlight index for the boot volume
+// group via `mdutil -E /` — the canonical, mdutil-supported rebuild, and the
+// only erase target that is valid (erase on the raw /System/Volumes/Data and
+// Preboot mounts, directly or via -a, returns "invalid operation"). Requires
+// admin; the re-index then runs in the background for a few minutes.
 //
-// It uses -i/-X per explicit volume, never `-E -a`: erase on the raw
-// /System/Volumes/Data and Preboot mounts returns "invalid operation" (which
-// aborted the earlier approach), whereas -i and -X are valid on those mounts.
-// Requires admin; the re-index then runs in the background for a few minutes.
+// Caveat: if the Data volume is wedged in "unknown indexing state", mdutil
+// cannot drive its re-index at all (every -i/-E on that mount is refused). The
+// fixes then are a reboot or System Settings → Spotlight privacy add/remove —
+// see the advisory the view shows when status is unhealthy.
 func rebuildSpotlight() (string, error) {
-	var cmds []string
-	for _, v := range rebuildVolumes {
-		cmds = append(cmds,
-			"mdutil -i off "+v,
-			"mdutil -X "+v,
-			"mdutil -i on "+v,
-		)
-	}
-	return runAdmin(strings.Join(cmds, " && "))
+	return runAdmin("mdutil -E /")
 }
 
 // setDisableSleep sets pmset disablesleep across all power sources. Requires

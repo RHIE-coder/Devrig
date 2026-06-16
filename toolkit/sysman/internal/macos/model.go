@@ -156,12 +156,15 @@ func (m Model) View() string {
 	case m.readErr != nil:
 		b.WriteString(errStyle.Render("  상태 확인 실패: "+m.readErr.Error()) + "\n")
 	default:
-		b.WriteString("  현재: " + onOff(m.status.SpotlightHealthy, "정상 (모든 볼륨 색인 사용)", "손상 감지 — 재색인 권장") + "\n")
+		b.WriteString("  현재: " + onOff(m.status.SpotlightHealthy, "정상 (모든 볼륨 색인 사용)", "손상/점검 필요") + "\n")
 		for _, ln := range m.status.SpotlightLines {
 			b.WriteString(faintStyle.Render(m.clip("    "+ln)) + "\n")
 		}
+		if !m.status.SpotlightHealthy {
+			b.WriteString(warnStyle.Render(m.wrap("  ⚠ Data 볼륨이 unknown/invalid면 mdutil로는 재색인이 안 됩니다 → 재부팅(부팅 시 자동 재구성) 또는 시스템 설정 > Spotlight 개인정보 보호에서 디스크 추가→제거")) + "\n")
+		}
 	}
-	b.WriteString(keyStyle.Render("  [e]") + descStyle.Render(" 색인 재설정 (디렉터리 제거 후 재구성, / 볼륨) — 관리자 권한 필요, 재색인에 수 분") + "\n")
+	b.WriteString(keyStyle.Render("  [e]") + descStyle.Render(" 색인 재구성 (mdutil -E /) — 관리자 권한 필요, 재색인에 수 분") + "\n")
 
 	// — Sleep —
 	b.WriteString("\n")
@@ -307,6 +310,8 @@ var (
 	okStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("78"))
 
 	errStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("196"))
+
+	warnStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("214"))
 
 	busyStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("214"))
 
