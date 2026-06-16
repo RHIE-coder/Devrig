@@ -10,6 +10,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
+	"github.com/rhie-coder/devrig/toolkit/sysman/internal/macos"
 	"github.com/rhie-coder/devrig/toolkit/sysman/internal/ports"
 	"github.com/rhie-coder/devrig/toolkit/sysman/internal/process"
 	"github.com/rhie-coder/devrig/toolkit/sysman/internal/state"
@@ -20,9 +21,11 @@ type view int
 const (
 	viewPorts view = iota
 	viewProcesses
+	viewSystem // macOS-only; reachable only when systemTabEnabled (see tabs_*.go)
 )
 
-var tabNames = []string{"Ports", "Processes"}
+// tabNames and systemTabEnabled are defined per-OS in tabs_darwin.go /
+// tabs_other.go so the System tab only appears on macOS.
 
 // chromeHeight is the rows used by the title bar, tab row, divider, detail line,
 // and footer (1 each). The active view gets the rest.
@@ -35,6 +38,7 @@ type Model struct {
 	active      view
 	ports       ports.Model
 	procs       process.Model
+	sys         macos.Model // System tab (macOS-only; inert when systemTabEnabled is false)
 	width       int
 	height      int
 	showStarted bool // AGE columns show absolute start time instead of elapsed age
@@ -53,11 +57,16 @@ func New() Model {
 		active: viewPorts,
 		ports:  ports.New(),
 		procs:  process.New(),
+		sys:    macos.New(),
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(m.ports.Init(), m.procs.Init())
+	cmds := []tea.Cmd{m.ports.Init(), m.procs.Init()}
+	if systemTabEnabled {
+		cmds = append(cmds, m.sys.Init())
+	}
+	return tea.Batch(cmds...)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -67,6 +76,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.ports.SetSize(msg.Width, m.bodyHeight())
 		m.procs.SetSize(msg.Width, m.bodyHeight())
+		m.sys.SetSize(msg.Width, m.bodyHeight())
 		return m, nil
 
 	case tea.KeyMsg:
@@ -101,6 +111,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.active = viewProcesses
 				m.publishFocus()
 				return m, nil
+			case "3":
+				if systemTabEnabled {
+					m.active = viewSystem
+					m.publishFocus()
+				}
+				return m, nil
 			case "a":
 				// Global toggle: AGE ⇄ absolute start time, on both views.
 				m.showStarted = !m.showStarted
@@ -124,18 +140,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.ports, cmd = m.ports.Update(msg)
 		case viewProcesses:
 			m.procs, cmd = m.procs.Update(msg)
+		case viewSystem:
+			m.sys, cmd = m.sys.Update(msg)
 		}
 		m.publishFocus()
 		return m, cmd
 	}
 
-	// Non-key messages are broadcast to both views; each ignores message types
-	// it doesn't recognize, so refresh loops stay alive on any tab.
-	var portsCmd, procsCmd tea.Cmd
+	// Non-key messages are broadcast to every view; each ignores message types
+	// it doesn't recognize, so refresh loops (and the System tab's async ops)
+	// stay alive on any tab.
+	var portsCmd, procsCmd, sysCmd tea.Cmd
 	m.ports, portsCmd = m.ports.Update(msg)
 	m.procs, procsCmd = m.procs.Update(msg)
+	m.sys, sysCmd = m.sys.Update(msg)
 	m.publishFocus()
-	return m, tea.Batch(portsCmd, procsCmd)
+	return m, tea.Batch(portsCmd, procsCmd, sysCmd)
 }
 
 func (m Model) View() string {
@@ -153,12 +173,23 @@ func (m Model) View() string {
 			body = m.ports.View()
 		case viewProcesses:
 			body = m.procs.View()
+		case viewSystem:
+			body = m.sys.View()
 		}
 		detail = m.renderDetail()
 	}
 
-	footer := footerStyle.Render("tab/1-2 switch · ↑/↓ navigate · / filter · t tree · a age⇄time · r refresh · k kill · K force-kill · q quit")
+	footer := footerStyle.Render(m.footerHint())
 	return lipgloss.JoinVertical(lipgloss.Left, title, tabs, divider, body, detail, footer)
+}
+
+// footerHint returns the key legend for the active tab. The table tabs share
+// one legend; the System tab has its own actions.
+func (m Model) footerHint() string {
+	if m.active == viewSystem {
+		return "tab switch · r refresh · e Spotlight 재색인 · s 잠자기방지 토글 · q quit"
+	}
+	return "tab switch · ↑/↓ navigate · / filter · t tree · a age⇄time · r refresh · k kill · K force-kill · q quit"
 }
 
 // focusedPID returns the PID selected in the active view (0 if none).
@@ -176,6 +207,10 @@ func (m Model) focusedPID() int32 {
 // parent and the exact command it was launched with — the two things the table
 // columns don't have room for.
 func (m Model) renderDetail() string {
+	if m.active == viewSystem {
+		return truncate(m.sys.Detail(), max(m.width, 1))
+	}
+
 	var ppid int32
 	var name, cmdline string
 	var ok bool
