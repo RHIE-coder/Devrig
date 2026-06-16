@@ -161,7 +161,7 @@ func (m Model) View() string {
 			b.WriteString(faintStyle.Render(m.clip("    "+ln)) + "\n")
 		}
 	}
-	b.WriteString(keyStyle.Render("  [e]") + descStyle.Render(" 색인 재구성 (erase & rebuild, 전 볼륨) — 관리자 권한 필요, 재색인에 수 분") + "\n")
+	b.WriteString(keyStyle.Render("  [e]") + descStyle.Render(" 색인 재설정 (디렉터리 제거 후 재구성, / 볼륨) — 관리자 권한 필요, 재색인에 수 분") + "\n")
 
 	// — Sleep —
 	b.WriteString("\n")
@@ -177,14 +177,15 @@ func (m Model) View() string {
 	}
 	b.WriteString(keyStyle.Render("  [s]") + descStyle.Render(" ON/OFF 토글 — 관리자 권한 필요") + "\n")
 
-	// — Result log —
+	// — Result log — wrapped (not clipped) so a long command error stays fully
+	// readable instead of being cut off at the screen edge.
 	if m.log != "" {
 		b.WriteString("\n")
 		style := okStyle
 		if m.logErr {
 			style = errStyle
 		}
-		b.WriteString(style.Render(m.clip("» " + m.log)))
+		b.WriteString(style.Render(m.wrap("» " + m.log)))
 		b.WriteString("\n")
 	}
 
@@ -213,6 +214,15 @@ func (m Model) clip(s string) string {
 		return s
 	}
 	return lipgloss.NewStyle().MaxWidth(m.width).Render(s)
+}
+
+// wrap soft-wraps s to the body width so long lines (e.g. a command error) span
+// multiple rows instead of being truncated.
+func (m Model) wrap(s string) string {
+	if m.width <= 0 {
+		return s
+	}
+	return lipgloss.NewStyle().Width(m.width).Render(s)
 }
 
 func loadStatusCmd() tea.Cmd {

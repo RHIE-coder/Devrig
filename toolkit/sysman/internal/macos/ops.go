@@ -56,13 +56,19 @@ func readStatus() (Status, error) {
 	return st, nil
 }
 
-// rebuildSpotlight enables indexing and erases+rebuilds the Spotlight index on
-// all volumes — the standard fix for a corrupted index (e.g. apps missing from
-// search). It targets all volumes (-a) because the Data volume is the one that
-// usually breaks. Requires admin. The re-index then runs in the background and
-// takes a few minutes to complete.
+// rebuildSpotlight resets the Spotlight index for the boot volume group: it
+// disables indexing, removes the (often corrupt/stuck) index directory with
+// -X, then re-enables it so the index is rebuilt from scratch — the reliable
+// fix when the Data volume is stuck in "unknown indexing state" and apps go
+// missing from search.
+//
+// It targets "/" (the firmlinked root), NOT "-a": erase/remove operations on
+// the raw /System/Volumes/Data and Preboot mounts return "invalid operation",
+// which is what aborted the earlier -E -a approach. "/"'s store physically
+// lives on the Data volume, so resetting "/" clears the broken store. Requires
+// admin; the re-index then runs in the background for a few minutes.
 func rebuildSpotlight() (string, error) {
-	return runAdmin("mdutil -i on -a && mdutil -E -a")
+	return runAdmin("mdutil -i off / && mdutil -X / && mdutil -i on /")
 }
 
 // setDisableSleep sets pmset disablesleep across all power sources. Requires
