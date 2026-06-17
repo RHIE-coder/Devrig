@@ -37,19 +37,25 @@ func TestPublishesFocusOnNavigation(t *testing.T) {
 	if err := json.Unmarshal(data, &snap); err != nil {
 		t.Fatalf("state file is not valid JSON: %v", err)
 	}
-	if snap.View != "ports" {
-		t.Errorf("view = %q, want %q (Ports is the default tab)", snap.View, "ports")
+	if snap.View != "system" {
+		t.Errorf("view = %q, want %q (the device status tab is the default landing tab)", snap.View, "system")
 	}
 	if snap.UpdatedAt == "" {
 		t.Error("updated_at should be set")
 	}
 
-	// Switching tabs should update the recorded view too.
+	// Switching tabs should update the recorded view too: '2' = Ports, '3' = Processes.
 	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")})
 	data, _ = os.ReadFile(path)
 	_ = json.Unmarshal(data, &snap)
+	if snap.View != "ports" {
+		t.Errorf("after '2' view = %q, want %q", snap.View, "ports")
+	}
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("3")})
+	data, _ = os.ReadFile(path)
+	_ = json.Unmarshal(data, &snap)
 	if snap.View != "processes" {
-		t.Errorf("after tab switch view = %q, want %q", snap.View, "processes")
+		t.Errorf("after '3' view = %q, want %q", snap.View, "processes")
 	}
 }
 
@@ -58,9 +64,10 @@ func TestPublishesFocusOnNavigation(t *testing.T) {
 func TestAgeTimeToggleOnA(t *testing.T) {
 	var m tea.Model = New()
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 120, Height: 40})
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")}) // Ports table
 
 	if h := m.View(); !strings.Contains(h, "AGE") {
-		t.Fatalf("default header should show AGE column, got:\n%s", h)
+		t.Fatalf("Ports header should show AGE column, got:\n%s", h)
 	}
 	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("a")})
 	if h := m.View(); !strings.Contains(h, "STARTED") {
@@ -115,16 +122,64 @@ func TestAncestryOverlay(t *testing.T) {
 	}
 }
 
-// TestFooterAdvertisesNewKeys locks the footer hint so the rebind stays
+// TestStatusTabIsDefault verifies the cross-platform device-status tab is the
+// landing tab on every OS, is labelled "System" in the tab row, sits on key '1',
+// and that its footer replaces the table keys with the status legend.
+func TestStatusTabIsDefault(t *testing.T) {
+	var m tea.Model = New()
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 140, Height: 40})
+
+	if got := m.(Model).active; got != viewMetrics {
+		t.Fatalf("default active = %d, want viewMetrics (status is the landing tab)", got)
+	}
+	out := m.View()
+	if !strings.Contains(out, "System") {
+		t.Error("tab row should label the device-status tab 'System'")
+	}
+	// The status footer drops the table-only keys (kill/filter/tree).
+	if strings.Contains(out, "k kill") {
+		t.Error("status footer should not advertise table keys like 'k kill'")
+	}
+
+	// '1' returns to it from another tab.
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")})
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("1")})
+	if got := m.(Model).active; got != viewMetrics {
+		t.Fatalf("after '1' active = %d, want viewMetrics", got)
+	}
+}
+
+// TestFooterAdvertisesNewKeys locks the footer hint so the rebinds and help stay
 // discoverable.
 func TestFooterAdvertisesNewKeys(t *testing.T) {
 	var m tea.Model = New()
 	m, _ = m.Update(tea.WindowSizeMsg{Width: 160, Height: 40})
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("2")}) // Ports table legend
 	out := m.View()
-	if !strings.Contains(out, "t tree") {
-		t.Error("footer should advertise 't tree'")
+	for _, want := range []string{"t 족보", "a 시간표시", "h 도움말"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("footer should advertise %q", want)
+		}
 	}
-	if !strings.Contains(out, "a age") {
-		t.Error("footer should advertise 'a age⇄time'")
+}
+
+// TestHelpOverlay verifies 'h' opens the guide (explaining the System-tab terms)
+// and esc closes it.
+func TestHelpOverlay(t *testing.T) {
+	var m tea.Model = New()
+	m, _ = m.Update(tea.WindowSizeMsg{Width: 160, Height: 44})
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("h")})
+	if !m.(Model).showHelp {
+		t.Fatal("'h' should open the help overlay")
+	}
+	out := m.View()
+	for _, want := range []string{"도움말", "부하(load)", "SoC", "IOPS"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("help overlay missing %q", want)
+		}
+	}
+	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyEsc})
+	if m.(Model).showHelp {
+		t.Error("esc should close the help overlay")
 	}
 }

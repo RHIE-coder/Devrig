@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/rhie-coder/devrig/toolkit/sysman/internal/app"
+	"github.com/rhie-coder/devrig/toolkit/sysman/internal/metrics"
 	"github.com/rhie-coder/devrig/toolkit/sysman/internal/ports"
 	"github.com/rhie-coder/devrig/toolkit/sysman/internal/process"
 	"github.com/rhie-coder/devrig/toolkit/sysman/internal/state"
@@ -61,6 +63,24 @@ func emitJSON(args []string) error {
 			return err
 		}
 		return enc.Encode(items)
+	case "metrics", "metric":
+		// Two samples ~700ms apart so the snapshot carries real network/disk
+		// rates (the first call only primes the counters); the static hardware
+		// spec is gathered once and nested under "spec".
+		spec := metrics.GatherSpec()
+		spec.BatteryMaxCapacityPct, spec.BatteryCycles, spec.BatteryCondition = metrics.GatherBatteryHealth()
+		online, latency := metrics.MeasureLatency()
+		return enc.Encode(struct {
+			Spec metrics.Spec `json:"spec"`
+			metrics.Snapshot
+			NetOnline    bool    `json:"net_online"`
+			NetLatencyMs float64 `json:"net_latency_ms"`
+		}{
+			Spec:         spec,
+			Snapshot:     metrics.SampleRates(700 * time.Millisecond),
+			NetOnline:    online,
+			NetLatencyMs: latency,
+		})
 	case "tree", "ancestry":
 		if len(args) < 2 {
 			return fmt.Errorf("json %s needs a pid: --json %s <pid>", kind, kind)
@@ -75,6 +95,6 @@ func emitJSON(args []string) error {
 		}
 		return enc.Encode(chain)
 	default:
-		return fmt.Errorf("unknown json kind %q (use: ports | ps | tree <pid>)", kind)
+		return fmt.Errorf("unknown json kind %q (use: ports | ps | metrics | tree <pid>)", kind)
 	}
 }

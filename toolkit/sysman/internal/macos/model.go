@@ -297,11 +297,11 @@ var (
 			Bold(true).
 			Foreground(lipgloss.Color("213"))
 
-	descStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("250"))
+	descStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 
-	faintStyle = lipgloss.NewStyle().
-			Faint(true).
-			Foreground(lipgloss.Color("240"))
+	// Secondary text — deliberately NOT lipgloss Faint, which rendered nearly
+	// invisible on dark terminals. A plain mid-gray stays readable.
+	faintStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
 
 	onStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("78"))
 
