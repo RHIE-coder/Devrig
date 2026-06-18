@@ -224,7 +224,9 @@ func (m Model) View() string {
 		detail = m.renderDetail()
 	}
 
-	footer := footerStyle.Render(m.footerHint())
+	// footerStyle adds 1 cell of padding each side, so the legend must fit in
+	// width-2 or it would overflow the terminal line and clip the last hint.
+	footer := footerStyle.Render(fitHint(m.footerHint(), max(m.width-2, 1)))
 	return lipgloss.JoinVertical(lipgloss.Left, title, tabs, divider, body, detail, footer)
 }
 
@@ -288,7 +290,11 @@ func (m Model) renderDetail() string {
 
 	var cmd string
 	if c := strings.TrimSpace(cmdline); c != "" {
-		cmd = detailStyle.Render(" · " + c)
+		// Ellipsize the command to what's left after the PPID/name head and the
+		// " · " separator, so a long path ends in "…" rather than being hard-cut.
+		if budget := max(m.width, 1) - lipgloss.Width(head) - 3; budget > 0 {
+			cmd = detailStyle.Render(" · " + ellipsize(c, budget))
+		}
 	} else {
 		cmd = detailHintStyle.Render(" · (no cmdline — 시스템/root 프로세스, sudo 필요)")
 	}
@@ -333,13 +339,19 @@ func (m Model) renderTree() string {
 		} else if process.IsRootParent(p.PPID) {
 			node += detailHintStyle.Render("  (" + process.InitName() + " 직속)")
 		}
+		total := max(m.width, 1)
 		line := treeNodeStyle.Render(node)
 		if c := strings.TrimSpace(p.Cmdline); c != "" {
-			line += treeCmdStyle.Render("  « " + c + " »")
+			// Budget for the path = width left after the node and the "  « … »"
+			// decoration (4 + 2 cells). Ellipsize so a long path ends in "…" with
+			// the closing » still visible, instead of being hard-cut mid-path.
+			if budget := total - lipgloss.Width(line) - 6; budget > 0 {
+				line += treeCmdStyle.Render("  « " + ellipsize(c, budget) + " »")
+			}
 		} else {
 			line += detailHintStyle.Render("  « no cmdline (sudo 필요) »")
 		}
-		b.WriteString(truncate(line, max(m.width, 1)))
+		b.WriteString(truncate(line, total))
 	}
 
 	// Pad to the full body height so the detail/footer stay anchored to the
@@ -429,9 +441,56 @@ func (m Model) publishFocus() {
 }
 
 // truncate clips a single styled line to w terminal cells, ANSI-aware so it
-// never cuts through an escape sequence.
+// never cuts through an escape sequence. It is a hard clip (no marker) — a final
+// safety clamp; prefer ellipsize for text the reader should know was cut.
 func truncate(s string, w int) string {
 	return lipgloss.NewStyle().MaxWidth(w).Render(s)
+}
+
+// ellipsize clips plain text to w display cells, appending "…" when it must cut
+// so the reader can tell the value continues. Width is measured ANSI-aware;
+// pass unstyled text (paths, names) so the cut never lands mid escape-sequence.
+func ellipsize(s string, w int) string {
+	if w <= 0 {
+		return ""
+	}
+	if lipgloss.Width(s) <= w {
+		return s
+	}
+	r := []rune(s)
+	for len(r) > 0 && lipgloss.Width(string(r))+1 > w { // +1 leaves room for "…"
+		r = r[:len(r)-1]
+	}
+	return string(r) + "…"
+}
+
+// fitHint keeps as many leading " · "-separated legend segments as fit in w
+// cells, marking a dropped tail with " …". Whole segments are kept intact (no
+// mid-word cut), and the result never bleeds past the terminal edge — so on a
+// narrow window the footer degrades gracefully instead of silently clipping.
+func fitHint(s string, w int) string {
+	if w <= 0 {
+		return ""
+	}
+	if lipgloss.Width(s) <= w {
+		return s
+	}
+	const sep = " · "
+	out := ""
+	for _, seg := range strings.Split(s, sep) {
+		cand := seg
+		if out != "" {
+			cand = out + sep + seg
+		}
+		if lipgloss.Width(cand)+2 > w { // reserve 2 cells for the " …" marker
+			if out == "" {
+				return ellipsize(seg, w)
+			}
+			return out + " …"
+		}
+		out = cand
+	}
+	return out
 }
 
 func (m Model) bodyHeight() int {

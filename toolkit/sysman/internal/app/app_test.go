@@ -8,9 +8,60 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	"github.com/rhie-coder/devrig/toolkit/sysman/internal/process"
 )
+
+// TestEllipsize verifies plain text is clipped to the cell budget with a "…"
+// marker, and that it fits within the budget (never overflows).
+func TestEllipsize(t *testing.T) {
+	cases := []struct {
+		in   string
+		w    int
+		want string
+	}{
+		{"short", 10, "short"},           // fits untouched
+		{"exactfit!!", 10, "exactfit!!"}, // exactly the budget, untouched
+		{"abcdefghij", 5, "abcd…"},       // clipped, marker appended
+		{"abcdefghij", 1, "…"},           // only room for the marker
+		{"abc", 0, ""},                   // no room at all
+		{"abc", -3, ""},                  // negative budget is safe
+	}
+	for _, c := range cases {
+		got := ellipsize(c.in, c.w)
+		if got != c.want {
+			t.Errorf("ellipsize(%q, %d) = %q, want %q", c.in, c.w, got, c.want)
+		}
+		if c.w > 0 && lipgloss.Width(got) > c.w {
+			t.Errorf("ellipsize(%q, %d) width %d exceeds budget", c.in, c.w, lipgloss.Width(got))
+		}
+	}
+}
+
+// TestFitHint verifies the footer legend keeps whole " · " segments, marks a
+// dropped tail with " …", and never exceeds the width budget.
+func TestFitHint(t *testing.T) {
+	const hint = "tab 전환 · h 도움말 · q 종료"
+
+	// Wide enough: returned verbatim.
+	if got := fitHint(hint, 100); got != hint {
+		t.Errorf("fitHint full = %q, want %q", got, hint)
+	}
+
+	// Too narrow for the last segment: it is dropped, tail marked with " …",
+	// and whole segments stay intact (no mid-segment cut).
+	got := fitHint(hint, 18)
+	if lipgloss.Width(got) > 18 {
+		t.Errorf("fitHint(%q, 18) = %q width %d exceeds 18", hint, got, lipgloss.Width(got))
+	}
+	if !strings.HasSuffix(got, "…") {
+		t.Errorf("fitHint dropped a segment but has no … marker: %q", got)
+	}
+	if strings.Contains(got, "q 종") && !strings.Contains(got, "q 종료") {
+		t.Errorf("fitHint cut a segment mid-word: %q", got)
+	}
+}
 
 // TestPublishesFocusOnNavigation verifies the wiring that backs the
 // "let Claude see what I'm looking at" feature: navigating the TUI writes the
