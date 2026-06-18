@@ -24,7 +24,7 @@ const refreshInterval = 2 * time.Second
 // `--json ps` headless mode.
 type Process struct {
 	PID       int32     `json:"pid"`
-	PPID      int32     `json:"ppid"`    // parent PID (0 if unknown); follow upward for the ancestry chain
+	PPID      int32     `json:"ppid"` // parent PID (0 if unknown); follow upward for the ancestry chain
 	Name      string    `json:"name"`
 	User      string    `json:"user"`
 	Status    string    `json:"status"`
@@ -36,14 +36,32 @@ type Process struct {
 }
 
 type (
-	processesMsg []Process
-	errMsg       struct{ err error }
-	tickMsg      time.Time
+	// processesMsg carries the freshly gathered list plus the CPU-time baseline
+	// it sampled, which the model stores to diff against on the next tick.
+	processesMsg struct {
+		procs   []Process
+		samples map[int32]cpuSample
+	}
+	errMsg  struct{ err error }
+	tickMsg time.Time
 )
+
+// cpuSample is one process's cumulative CPU time (user+system, seconds) at a
+// moment. CPU% is the rise in this value over the wall-clock gap between two
+// samples — i.e. the share of a core used *during that window*, not the
+// lifetime average gopsutil's CPUPercent() would give.
+type cpuSample struct {
+	secs float64
+	at   time.Time
+}
+
+// cpuSamplePause is the short gap used to measure usage when there is no prior
+// baseline (the first tick, and the one-shot `--json ps` headless mode).
+const cpuSamplePause = 350 * time.Millisecond
 
 // Model is the Processes view (a sub-model embedded by the parent).
 type Model struct {
-	table     table.Model
+	table       table.Model
 	all         []Process
 	shown       []Process
 	err         error
@@ -51,6 +69,11 @@ type Model struct {
 	filter      string
 	filtering   bool
 	showStarted bool // AGE column shows absolute start time instead of elapsed age
+
+	// prevCPU is the previous tick's CPU-time baseline, keyed by PID, used to
+	// compute each process's current (interval) CPU% instead of its lifetime
+	// average.
+	prevCPU map[int32]cpuSample
 }
 
 const (
@@ -84,7 +107,21 @@ func New() Model {
 
 // Init loads the process list and starts the refresh ticker.
 func (m Model) Init() tea.Cmd {
-	return tea.Batch(loadProcesses, tick())
+	return tea.Batch(m.load(), tick())
+}
+
+// load gathers the next process snapshot, diffing CPU times against the
+// previous tick's baseline so CPU% reflects current usage. It mirrors the
+// metrics view's prev-snapshot pattern.
+func (m Model) load() tea.Cmd {
+	prev := m.prevCPU
+	return func() tea.Msg {
+		procs, samples, err := gather(prev)
+		if err != nil {
+			return errMsg{err}
+		}
+		return processesMsg{procs: procs, samples: samples}
+	}
 }
 
 // Filtering reports whether the view is capturing filter keystrokes.
@@ -137,7 +174,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case processesMsg:
 		m.err = nil
-		m.all = []Process(msg)
+		m.all = msg.procs
+		m.prevCPU = msg.samples
 		m.applyFilter()
 		return m, nil
 
@@ -146,7 +184,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 
 	case tickMsg:
-		return m, tea.Batch(loadProcesses, tick())
+		return m, tea.Batch(m.load(), tick())
 
 	case tea.KeyMsg:
 		if m.filtering {
@@ -157,7 +195,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			m.filtering = true
 			return m, nil
 		case "r":
-			return m, loadProcesses
+			return m, m.load()
 		case "k":
 			return m, m.killSelected(false)
 		case "K", "x":
@@ -303,6 +341,7 @@ func (m Model) killSelected(force bool) tea.Cmd {
 		return nil
 	}
 	pid := m.shown[i].PID
+	prev := m.prevCPU
 	return func() tea.Msg {
 		p, err := process.NewProcess(pid)
 		if err != nil {
@@ -316,29 +355,112 @@ func (m Model) killSelected(force bool) tea.Cmd {
 		if err != nil {
 			return errMsg{err}
 		}
-		return loadProcesses()
+		procs, samples, err := gather(prev)
+		if err != nil {
+			return errMsg{err}
+		}
+		return processesMsg{procs: procs, samples: samples}
 	}
 }
 
-// Gather collects a snapshot of all processes, sorted by CPU descending. Shared
-// by the TUI and the `--json ps` headless mode.
+// Gather collects a snapshot of all processes, sorted by CPU descending, for the
+// one-shot `--json ps` headless mode. With no prior baseline it takes two
+// readings cpuSamplePause apart so CPU% is the *current* usage, not a lifetime
+// average.
 func Gather() ([]Process, error) {
+	procs, _, err := gather(nil)
+	return procs, err
+}
+
+// gather reads every process and computes each one's CPU% as the rise in its
+// CPU time over the gap since prev's matching sample (≈ the share of one core
+// used during that window). It returns the list plus a fresh baseline to diff
+// against next time. When prev is empty (first tick / headless), it primes a
+// baseline and waits cpuSamplePause so the very first numbers are real too.
+func gather(prev map[int32]cpuSample) ([]Process, map[int32]cpuSample, error) {
+	base := prev
+	if len(base) == 0 {
+		base = sampleCPUTimes()
+		time.Sleep(cpuSamplePause)
+	}
+
 	procs, err := process.Processes()
 	if err != nil {
-		return nil, err
+		return nil, prev, err
 	}
 
 	out := make([]Process, 0, len(procs))
+	next := make(map[int32]cpuSample, len(procs))
 	for _, p := range procs {
-		out = append(out, snapshot(p))
+		pr := snapshot(p)
+		if secs, ok := procCPUSecs(p); ok {
+			// Stamp each read at its own moment: reading Times for hundreds of
+			// processes takes hundreds of ms, so a single shared timestamp would
+			// mis-scale every process's rate. A per-process dt keeps it exact.
+			cur := cpuSample{secs: secs, at: time.Now()}
+			next[p.Pid] = cur
+			if b, had := base[p.Pid]; had {
+				if v, ok := cpuRate(b, cur); ok {
+					pr.CPU = v // 100% == one core, over the window
+				}
+			}
+			// No baseline yet (brand-new process): CPU stays 0 for one tick,
+			// then becomes accurate — never a misleading lifetime average.
+		}
+		out = append(out, pr)
 	}
 
 	sort.Slice(out, func(i, j int) bool { return out[i].CPU > out[j].CPU })
-	return out, nil
+	return out, next, nil
 }
 
-// snapshot reads a single process into a Process. Best-effort: any field that
-// can't be read (permissions, race with exit) is left at its zero value.
+// cpuRate computes interval CPU% from two cumulative-CPU-time samples: the rise
+// in CPU seconds over the wall-clock gap between them, scaled so 100% == one
+// core fully busy for the whole window. ok is false when the rate isn't
+// meaningful — a non-positive time gap (clock skew, same instant) or a
+// non-positive delta (an idle process, or a counter that didn't advance) — and
+// the caller leaves CPU at 0 rather than show a bogus number.
+func cpuRate(prev, cur cpuSample) (float64, bool) {
+	dt := cur.at.Sub(prev.at).Seconds()
+	if dt <= 0 {
+		return 0, false
+	}
+	if v := (cur.secs - prev.secs) / dt * 100; v > 0 {
+		return v, true
+	}
+	return 0, false
+}
+
+// sampleCPUTimes reads every process's cumulative CPU time once, stamped now —
+// the baseline for the first interval.
+func sampleCPUTimes() map[int32]cpuSample {
+	procs, err := process.Processes()
+	if err != nil {
+		return map[int32]cpuSample{}
+	}
+	m := make(map[int32]cpuSample, len(procs))
+	for _, p := range procs {
+		if secs, ok := procCPUSecs(p); ok {
+			m[p.Pid] = cpuSample{secs: secs, at: time.Now()}
+		}
+	}
+	return m
+}
+
+// procCPUSecs returns a process's cumulative CPU seconds (user+system). Using
+// the raw times (not gopsutil's CPUPercent) lets us diff two readings for the
+// interval rate.
+func procCPUSecs(p *process.Process) (float64, bool) {
+	t, err := p.Times()
+	if err != nil || t == nil {
+		return 0, false
+	}
+	return t.User + t.System, true
+}
+
+// snapshot reads a single process's descriptive fields. CPU is left at 0 here
+// and filled in by gather (from the interval diff); Mem is the live RSS share.
+// Best-effort: any field that can't be read is left at its zero value.
 func snapshot(p *process.Process) Process {
 	name, _ := p.Name()
 	user, _ := p.Username()
@@ -350,7 +472,6 @@ func snapshot(p *process.Process) Process {
 		status = s[0]
 	}
 
-	cpu, _ := p.CPUPercent()
 	mem, _ := p.MemoryPercent()
 
 	var started time.Time
@@ -366,7 +487,6 @@ func snapshot(p *process.Process) Process {
 		Name:      name,
 		User:      user,
 		Status:    status,
-		CPU:       cpu,
 		Mem:       mem,
 		Cmdline:   cmdline,
 		Started:   started,
@@ -408,14 +528,6 @@ func Ancestry(pid int32) ([]Process, error) {
 		cur = ppid
 	}
 	return chain, nil
-}
-
-func loadProcesses() tea.Msg {
-	items, err := Gather()
-	if err != nil {
-		return errMsg{err}
-	}
-	return processesMsg(items)
 }
 
 func truncate(s string, n int) string {

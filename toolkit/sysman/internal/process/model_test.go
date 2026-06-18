@@ -3,7 +3,49 @@ package process
 import (
 	"os"
 	"testing"
+	"time"
 )
+
+// TestCPURate pins down the interval CPU% math: the rise in cumulative CPU
+// seconds over the wall-clock gap, scaled so 100% == one core busy for the
+// whole window.
+func TestCPURate(t *testing.T) {
+	base := time.Unix(1_700_000_000, 0)
+	mk := func(secs float64, offset time.Duration) cpuSample {
+		return cpuSample{secs: secs, at: base.Add(offset)}
+	}
+
+	cases := []struct {
+		name    string
+		prev    cpuSample
+		cur     cpuSample
+		wantOK  bool
+		wantCPU float64
+	}{
+		{"one core fully busy", mk(0, 0), mk(1, time.Second), true, 100},
+		{"half a core", mk(10, 0), mk(10.5, time.Second), true, 50},
+		{"two cores busy", mk(0, 0), mk(2, time.Second), true, 200},
+		{"idle process (no delta)", mk(5, 0), mk(5, time.Second), false, 0},
+		{"non-positive gap (same instant)", mk(0, 0), mk(1, 0), false, 0},
+		{"clock went backwards", mk(0, time.Second), mk(1, 0), false, 0},
+		{"counter reset (negative delta)", mk(10, 0), mk(2, time.Second), false, 0},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			v, ok := cpuRate(c.prev, c.cur)
+			if ok != c.wantOK {
+				t.Fatalf("cpuRate ok = %v, want %v", ok, c.wantOK)
+			}
+			if ok && v != c.wantCPU {
+				t.Errorf("cpuRate = %v, want %v", v, c.wantCPU)
+			}
+			if !ok && v != 0 {
+				t.Errorf("cpuRate not-ok should return 0, got %v", v)
+			}
+		})
+	}
+}
 
 // TestAncestrySelf verifies the chain starts at the requested pid and walks up
 // to a root: each node's PPID is the next node's PID, and the last node has no
