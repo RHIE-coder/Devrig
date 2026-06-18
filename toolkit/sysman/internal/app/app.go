@@ -234,7 +234,7 @@ func (m Model) View() string {
 func (m Model) footerHint() string {
 	switch m.active {
 	case viewSystem:
-		return "tab 전환 · h 도움말 · r 새로고침 · e Spotlight 재색인 · s 잠자기방지 · q 종료"
+		return m.sys.FooterHint()
 	case viewMetrics:
 		return "tab 전환 · h 도움말(용어 설명) · r 새로고침 · q 종료"
 	}
@@ -400,6 +400,8 @@ func (m Model) activeFiltering() bool {
 		return m.ports.Filtering()
 	case viewProcesses:
 		return m.procs.Filtering()
+	case viewSystem:
+		return m.sys.Filtering()
 	}
 	return false
 }

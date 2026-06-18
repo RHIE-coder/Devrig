@@ -185,7 +185,7 @@ func (m Model) hostLine(s Snapshot) string {
 		}
 		parts += faintStyle.Render("  ·  " + seg)
 	}
-	return specKeyStyle.Render(" Up   ") + " " + parts + "\n"
+	return specKeyStyle.Render(" UP   ") + " " + parts
 }
 
 // conditionKO translates macOS's battery "Condition" to Korean.
@@ -245,8 +245,10 @@ func (m Model) View() string {
 	var b strings.Builder
 
 	// — Hardware spec (static) + live host line (uptime/boot/battery) —
-	b.WriteString(m.specBlock())
-	b.WriteString(m.hostLine(s))
+	// Each header row is separated by a blank line so the labelled badges
+	// (CHIP/SPEC/UP) read as distinct rows instead of one merged colored block.
+	b.WriteString(m.specBlock() + "\n\n")
+	b.WriteString(m.hostLine(s) + "\n\n")
 	b.WriteString(dividerStyle.Render(strings.Repeat("─", clampWidth(m.width))) + "\n")
 
 	// Each subsystem is a "row": a colored left rail (alternating shade) groups
@@ -404,16 +406,14 @@ func (m Model) tempLine(s Snapshot) string {
 // omitted so the line stays clean everywhere.
 func (m Model) specBlock() string {
 	if !m.specLoaded {
-		return faintStyle.Render(" 장치 정보 읽는 중…") + "\n"
+		return faintStyle.Render(" 장치 정보 읽는 중…")
 	}
 	sp := m.spec
-	var b strings.Builder
 
 	title := hostStyle.Render(" " + firstNonEmpty(sp.Hostname, "this device"))
 	if sp.Model != "" {
 		title += faintStyle.Render("  ·  " + sp.Model)
 	}
-	b.WriteString(title + "\n")
 
 	chip := descStyle.Render(firstNonEmpty(sp.CPUModel, "CPU")) + faintStyle.Render("  ·  "+m.coresDesc())
 	if sp.GPUCores > 0 {
@@ -422,7 +422,6 @@ func (m Model) specBlock() string {
 	if sp.CPUMHz > 0 {
 		chip += faintStyle.Render(fmt.Sprintf("  ·  %.2f GHz", sp.CPUMHz/1000))
 	}
-	b.WriteString(specKeyStyle.Render(" Chip ") + " " + chip + "\n")
 
 	disk := humanBytes(sp.DiskTotal)
 	if sp.DiskFstype != "" {
@@ -438,8 +437,13 @@ func (m Model) specBlock() string {
 	if sp.Virtualization != "" {
 		info += faintStyle.Render("   ·   VM: " + sp.Virtualization)
 	}
-	b.WriteString(specKeyStyle.Render(" Spec ") + " " + info + "\n")
-	return b.String()
+
+	// Rows joined by a blank line so the CHIP/SPEC badges don't merge visually.
+	return strings.Join([]string{
+		title,
+		specKeyStyle.Render(" CHIP ") + " " + chip,
+		specKeyStyle.Render(" SPEC ") + " " + info,
+	}, "\n\n")
 }
 
 // coresDesc describes the core layout: the P/E split on Apple Silicon, the

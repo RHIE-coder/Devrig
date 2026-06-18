@@ -24,12 +24,20 @@
   - 선택한 행의 전체 주소·시작시각·작업 디렉토리는 표 아래 디테일 라인에 표시 (너비에 맞춰 동적 축약, `~` 홈 치환)
   - `k` 종료(SIGTERM) · `K` 강제 종료(SIGKILL, SIGTERM 무시하는 데몬용) · `r` 즉시 갱신 · `/` 필터
 - **Processes** — 실행 중인 전체 프로세스를 CPU 사용량 순으로 표시(PID/NAME/USER/STAT/AGE/CPU%/MEM%), 2초마다 자동 갱신, `k`로 종료, `/` 필터
-- **Maintenance (macOS)** *(macOS 전용)* — OS 유지보수 유틸리티. **macOS에서만 탭이 나타나며 Windows·Linux에서는 탭 자체가 숨겨집니다**(빌드 태그로 제외 — Spotlight·pmset이 macOS 전용이라). 즉 Windows 사용자에게는 `System / Ports / Processes` 3개 탭만 보입니다. (추후 OS별 유지보수 탭을 추가할 수 있습니다.)
-  - **Spotlight 색인 복구**: 전 볼륨(`mdutil -s -a`) 색인 상태를 보고, 손상 시 `[e]`로 `mdutil -E /` (루트 erase & rebuild)를 실행. `/`만 보면 "enabled"여도 앱이 사는 **Data 볼륨**이 `Error: unknown indexing state`인 경우(앱이 있는데 Spotlight에 안 잡히는 증상)를 `-s -a`로 잡아냅니다.
-    - erase는 `/`에만 적용합니다 — raw 마운트(`/System/Volumes/Data`·Preboot)에는 `-i`/`-E`가 root로도 "invalid operation"으로 거부됩니다.
-    - **단, Data 볼륨이 unknown/invalid로 wedge된 경우 mdutil로는 재색인을 못 띄웁니다.** 이때는 **재부팅**(부팅 시 자동 재구성) 또는 **시스템 설정 > Spotlight 개인정보 보호에서 디스크 추가→제거**가 해결책 — UI가 손상 감지 시 이 안내를 표시합니다
-  - **잠자기 방지 토글**: `pmset disablesleep` 값을 확인하고 `[s]`로 ON/OFF
-  - 두 작업 모두 root 권한이 필요해 **osascript 네이티브 인증 대화상자**로 승격합니다(TUI가 비밀번호를 직접 받지 않음). 색인 재구성은 되돌릴 수 없는 작업이라 실행 전 `y/n` 확인을 받습니다
+  - **CPU%는 "지금" 사용량**입니다 — 갱신 구간(2초) 사이 CPU 시간 증가분을 차분해 계산한 *실시간* 값으로, 활성 상태 보기·`top`과 같은 의미입니다(프로세스 시작 이후 누적 평균이 아님). **100% = 코어 1개 풀가동**이라 멀티스레드 프로세스는 100%를 넘을 수 있고, 여러 프로세스 합이 100%를 넘는 것도 정상입니다(전체 예산 = 코어 수 × 100%). 갓 뜬 프로세스는 첫 1틱 동안 0%로 보이다 다음 갱신부터 정확해집니다
+- **Maintenance (macOS)** *(macOS 전용)* — OS 유지보수 유틸리티. **macOS에서만 탭이 나타나며 Windows·Linux에서는 탭 자체가 숨겨집니다**(빌드 태그로 제외 — Spotlight·pmset·앱 제거가 macOS 전용이라). 즉 Windows 사용자에게는 `System / Ports / Processes` 3개 탭만 보입니다. 이 탭은 **2개의 하위 탭**으로 나뉘며 **`←`/`→`** 로 전환합니다(상위 탭은 `tab`·숫자키, 목록은 `↑`/`↓`이라 좌우 화살표가 안 겹칩니다).
+  - **하위 탭 ① 유지보수**
+    - **Spotlight 색인 복구**: 전 볼륨(`mdutil -s -a`) 색인 상태를 보고, 손상 시 `[e]`로 `mdutil -E /` (루트 erase & rebuild)를 실행. `/`만 보면 "enabled"여도 앱이 사는 **Data 볼륨**이 `Error: unknown indexing state`인 경우(앱이 있는데 Spotlight에 안 잡히는 증상)를 `-s -a`로 잡아냅니다.
+      - erase는 `/`에만 적용합니다 — raw 마운트(`/System/Volumes/Data`·Preboot)에는 `-i`/`-E`가 root로도 "invalid operation"으로 거부됩니다.
+      - **단, Data 볼륨이 unknown/invalid로 wedge된 경우 mdutil로는 재색인을 못 띄웁니다.** 이때는 **재부팅**(부팅 시 자동 재구성) 또는 **시스템 설정 > Spotlight 개인정보 보호에서 디스크 추가→제거**가 해결책 — UI가 손상 감지 시 이 안내를 표시합니다
+    - **잠자기 방지 토글**: `pmset disablesleep` 값을 확인하고 `[s]`로 ON/OFF
+    - 두 작업 모두 root 권한이 필요해 **osascript 네이티브 인증 대화상자**로 승격합니다(TUI가 비밀번호를 직접 받지 않음). 색인 재구성은 되돌릴 수 없는 작업이라 실행 전 `y/n` 확인을 받습니다
+  - **하위 탭 ② 앱 제거** — 앱 본체뿐 아니라 macOS 곳곳에 남는 **잔재물(설정·캐시·로그·백그라운드 데몬)까지 한 번에** 정리합니다. Windows의 "프로그램 추가/제거"처럼, 앱을 `/Applications`에서 휴지통에 버린 뒤에도 남는 파일들을 찾아 함께 제거합니다.
+    - **앱 목록** — `/Applications`·`/Applications/Utilities`·`~/Applications`의 `.app`을 나열(`/`로 검색, `↑`/`↓` 이동). SIP 보호 Apple 앱이 사는 `/System/Applications`는 **의도적으로 제외**합니다(제거 불가·불필요).
+    - **`enter` 분석** — 선택한 앱의 `Info.plist`에서 **번들 ID**(`CFBundleIdentifier`, 예 `com.google.Chrome`)를 읽어, `~/Library`·`/Library`·`/var/db/receipts` 곳곳을 스캔합니다: `Application Support`·`Caches`·`Preferences`·`Containers`·`Group Containers`·`Saved Application State`·`HTTPStorages`·`Logs`·`WebKit`·`Cookies`·**`LaunchAgents`/`LaunchDaemons`**(앱을 지워도 계속 도는 백그라운드 데몬)·`PrivilegedHelperTools`·설치 영수증 등. 각 항목의 **경로 + 용량 + 합계**를 보여준 뒤에야 삭제합니다.
+    - **매칭 안전장치** — 번들 ID 매칭이 1순위(`com.foo.app` 및 그 `com.foo.app.*` 헬퍼, `<팀ID>.com.foo.app` 그룹 컨테이너). 표시 이름 매칭(예 `~/Library/Logs/Foo`)은 보조 신호라 **`⚠이름매칭`** 으로 따로 표시해 사람이 확인하게 합니다. **여러 앱이 공유하는 벤더 폴더(`…/Google`, `…/Microsoft` 등)는 안전을 위해 제외** — Chrome 하나 지우려다 모든 Google 앱 데이터를 날리는 사고를 막습니다(리뷰 화면에 이 안내가 항상 표시됩니다).
+    - **제거 방식** — 기본 **`[y]` 휴지통 이동**(Finder 경유, **되돌리기(Put Back) 가능**·보호 항목은 Finder가 인증을 띄움), 또는 **`[X]` 영구 삭제**(`rm -rf`, 복구 불가; `/Library`·root 소유 항목은 그때만 osascript로 승격). 기본이 휴지통이라 혹시 잘못 매칭돼도 복구할 수 있습니다.
+    - 분석/제거는 비동기로 돌고(스피너), 권한이 필요하면 시스템 대화상자를 띄웁니다. 첫 휴지통 이동 때 macOS가 "Finder 제어 허용" 자동화 권한을 한 번 물을 수 있습니다.
 
 화면은 터미널 너비에 맞춰 컬럼(PROCESS/PROJECT/NAME)을 자동으로 늘이고 줄입니다.
 
@@ -38,15 +46,20 @@
 | 키 | 동작 |
 |----|------|
 | `tab` / `1` `2` `3` `4` | 탭 전환 (1=System·기본, 2=Ports, 3=Processes, 4=Maintenance·macOS 전용) |
+| `←` / `→` *(Maintenance)* | 하위 탭 전환 (유지보수 ⇄ 앱 제거) |
 | `h` / `?` | System 탭 용어 설명 오버레이 — CPU·부하·메모리·온도·배터리 등 각 항목이 무슨 뜻인지 쉬운 말로 (esc/h 닫기). 탭 전환·단축키는 푸터 참조 |
-| `↑` / `↓` | 행 이동 (테이블 탭) |
-| `/` | 필터(검색) 모드 — 입력 중 실시간 필터, `enter` 적용, `esc` 해제 |
+| `↑` / `↓` | 행 이동 (테이블 탭·앱 목록·리뷰 스크롤) |
+| `/` | 필터(검색) 모드 — 입력 중 실시간 필터, `enter` 적용, `esc` 해제 (Ports·Processes·앱 제거) |
 | `t` | AGE 컬럼 토글: 경과시간 ⇄ 절대 시작일시(STARTED) |
-| `r` | 즉시 새로고침 (System 탭=즉시 재측정, Maintenance 탭=상태 다시 읽기) |
+| `r` | 즉시 새로고침 (System 탭=즉시 재측정, Maintenance 탭=상태/목록 다시 읽기) |
 | `k` | 선택한 프로세스 종료 (SIGTERM) |
 | `K` | 선택한 프로세스 강제 종료 (SIGKILL) |
-| `e` *(Maintenance)* | Spotlight 색인 재구성 (확인 후 관리자 인증) |
-| `s` *(Maintenance)* | 잠자기 방지(`disablesleep`) ON/OFF 토글 (관리자 인증) |
+| `e` *(유지보수)* | Spotlight 색인 재구성 (확인 후 관리자 인증) |
+| `s` *(유지보수)* | 잠자기 방지(`disablesleep`) ON/OFF 토글 (관리자 인증) |
+| `enter` *(앱 제거)* | 선택 앱 분석 — 잔재물 스캔 후 제거 항목 리뷰 |
+| `y` *(앱 제거·리뷰)* | 앱+잔재물을 **휴지통으로 이동** (되돌리기 가능) |
+| `X` *(앱 제거·리뷰)* | 앱+잔재물 **영구 삭제** (`rm -rf`, 복구 불가) |
+| `n` / `esc` *(앱 제거·리뷰)* | 제거 취소 |
 | `q` / `ctrl+c` | 종료 |
 
 > 필터 입력 중에는 `q`·숫자 등 모든 키가 검색어로 들어가며 전역 단축키로 가로채지 않습니다.
@@ -73,7 +86,7 @@ UI 없이 JSON 스냅샷을 출력하는 헤드리스 모드가 있어 스크립
 
 ```bash
 devrig run sysman --json ports   # 리스닝 포트 (port/pid/process/project/cwd/cpu/mem/started/uptime_sec)
-devrig run sysman --json ps      # 전체 프로세스 (CPU 내림차순; started/uptime_sec 포함)
+devrig run sysman --json ps      # 전체 프로세스 (CPU 내림차순; started/uptime_sec 포함). cpu는 실시간 값이라 기준선 확보용으로 ~350ms 두 번 샘플링
 devrig run sysman --json metrics # 디바이스 상태 1회 스냅샷
 ```
 
@@ -110,7 +123,10 @@ internal/
             model.go         System 뷰 렌더: 스펙 헤더 + 게이지/스파크라인
   ports/    model.go         Ports 뷰: 리스너→프로세스→프로젝트 매핑 + 필터 + 종료
   process/  model.go         Processes 뷰: 전체 프로세스 테이블 + 필터 + 종료
-  macos/    model.go,ops.go  Maintenance 뷰(macOS 전용): Spotlight 복구 + pmset 토글
+  macos/    tab.go           Maintenance 탭(macOS 전용): 유지보수·앱 제거 하위 탭 셸(←/→)
+            model.go,ops.go  하위 탭 ① 유지보수: Spotlight 복구 + pmset 토글
+            uninstall.go     하위 탭 ② 앱 제거: 앱 목록→스캔→리뷰→제거 상태머신
+            appscan.go       앱/잔재물 스캔·매칭·휴지통/영구 삭제 로직 (owner_*.go: 소유자 판별)
   state/    state.go        현재 탭·포커스 항목을 JSON 상태 파일로 기록
 ```
 
@@ -125,6 +141,7 @@ internal/
 - [x] 너비 반응형 레이아웃
 - [x] JSON 헤드리스 모드 + 포커스 상태 파일 (AI/스크립트 연동)
 - [x] OS별 탭 (macOS 전용 Maintenance 탭: Spotlight 복구 · pmset disablesleep)
+- [x] 앱 깔끔히 제거 (macOS) — 번들 ID로 잔재물(설정·캐시·로그·LaunchDaemon)까지 스캔→휴지통/영구 삭제
 - [x] System(디바이스 상태) 기본 탭 — 하드웨어 스펙 + CPU/메모리/스왑/네트워크/디스크/온도/배터리/가동시간, 전 OS 공통, 온도는 Apple Silicon 포함
 - [ ] 종료 전 확인 다이얼로그
 - [ ] 정렬 기준 전환(CPU/MEM/PID/PROJECT)

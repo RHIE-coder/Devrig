@@ -17,11 +17,12 @@ const (
 	confirmRebuild
 )
 
-// Model is the System tab: it shows Spotlight/sleep status and runs the two
-// maintenance actions. Mutating actions run asynchronously (they pop a macOS
-// auth dialog), so the model has a busy state and a spinner while one is in
-// flight; input is ignored until it completes.
-type Model struct {
+// maintModel is the "유지보수" sub-tab: it shows Spotlight/sleep status and runs
+// the two maintenance actions. Mutating actions run asynchronously (they pop a
+// macOS auth dialog), so the model has a busy state and a spinner while one is
+// in flight; input is ignored until it completes. It is hosted (alongside the
+// app-uninstaller sub-tab) by the container Model in tab.go.
+type maintModel struct {
 	width, height int
 
 	status  Status
@@ -51,19 +52,19 @@ type (
 	tickMsg struct{}
 )
 
-// New returns an empty System tab; call Init to load the current status.
-func New() Model { return Model{} }
+// newMaint returns an empty 유지보수 sub-tab; call Init to load the current status.
+func newMaint() maintModel { return maintModel{} }
 
 // Init loads the initial Spotlight/sleep status.
-func (m Model) Init() tea.Cmd { return loadStatusCmd() }
+func (m maintModel) Init() tea.Cmd { return loadStatusCmd() }
 
 // SetSize records the body area so the view can pad/clip to it.
-func (m *Model) SetSize(w, h int) {
+func (m *maintModel) SetSize(w, h int) {
 	m.width = w
 	m.height = h
 }
 
-func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
+func (m maintModel) Update(msg tea.Msg) (maintModel, tea.Cmd) {
 	switch msg := msg.(type) {
 	case statusMsg:
 		m.loaded = true
@@ -105,7 +106,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) updateKey(key tea.KeyMsg) (Model, tea.Cmd) {
+func (m maintModel) updateKey(key tea.KeyMsg) (maintModel, tea.Cmd) {
 	if m.busy {
 		return m, nil // a privileged op is running; ignore input until it returns
 	}
@@ -135,14 +136,14 @@ func (m Model) updateKey(key tea.KeyMsg) (Model, tea.Cmd) {
 
 // start enters the busy state for an admin action and kicks off its command
 // (which carries its own label) alongside the spinner ticker.
-func (m Model) start(cmd tea.Cmd) (Model, tea.Cmd) {
+func (m maintModel) start(cmd tea.Cmd) (maintModel, tea.Cmd) {
 	m.busy = true
 	m.busyMsg = "관리자 권한 요청 중… (시스템 대화상자를 확인하세요)"
 	m.log = ""
 	return m, tea.Batch(cmd, tick())
 }
 
-func (m Model) View() string {
+func (m maintModel) View() string {
 	var b strings.Builder
 	b.WriteString(headerStyle.Render(" macOS 시스템 유틸리티 "))
 	b.WriteString("\n\n")
@@ -201,7 +202,7 @@ func (m Model) View() string {
 
 // Detail is the line the parent shell renders under the body: the pending
 // confirm prompt, the busy spinner, or the key hint.
-func (m Model) Detail() string {
+func (m maintModel) Detail() string {
 	switch {
 	case m.busy:
 		return busyStyle.Render(spinner[m.frame%len(spinner)] + " " + m.busyMsg)
@@ -212,7 +213,7 @@ func (m Model) Detail() string {
 	}
 }
 
-func (m Model) clip(s string) string {
+func (m maintModel) clip(s string) string {
 	if m.width <= 0 {
 		return s
 	}
@@ -221,7 +222,7 @@ func (m Model) clip(s string) string {
 
 // wrap soft-wraps s to the body width so long lines (e.g. a command error) span
 // multiple rows instead of being truncated.
-func (m Model) wrap(s string) string {
+func (m maintModel) wrap(s string) string {
 	if m.width <= 0 {
 		return s
 	}

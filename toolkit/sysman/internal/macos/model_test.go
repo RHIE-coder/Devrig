@@ -19,7 +19,7 @@ func key(s string) tea.KeyMsg {
 // dispatches work. None of the returned commands are executed, so no real
 // system command is invoked by this test.
 func TestRebuildNeedsConfirm(t *testing.T) {
-	m := New()
+	m := newMaint()
 	m.SetSize(80, 20)
 	m, _ = m.Update(statusMsg{st: Status{SpotlightHealthy: false}})
 
@@ -53,7 +53,7 @@ func TestRebuildNeedsConfirm(t *testing.T) {
 // TestSleepToggleGoesBusy verifies 's' starts an (admin) toggle without a
 // separate confirm, and that input is ignored while busy.
 func TestSleepToggleGoesBusy(t *testing.T) {
-	m := New()
+	m := newMaint()
 	m.SetSize(80, 20)
 	m, _ = m.Update(statusMsg{st: Status{SleepKnown: true, SleepDisabled: false}})
 
@@ -70,7 +70,7 @@ func TestSleepToggleGoesBusy(t *testing.T) {
 
 // TestViewRendersStates ensures the body renders without panic across states.
 func TestViewRendersStates(t *testing.T) {
-	m := New()
+	m := newMaint()
 	m.SetSize(100, 24)
 	if !strings.Contains(m.View(), "상태 읽는 중") {
 		t.Error("unloaded view should show a loading hint")
