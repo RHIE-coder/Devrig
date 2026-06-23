@@ -1,0 +1,22 @@
+# DevRig forge recipe — builder 엔진이 이 매니페스트를 읽어 동작합니다.
+# 별도의 "종류(kind)"는 없습니다. 어떤 필드를 채웠느냐가 곧 동작입니다.
+name: claude-statusline
+about: Claude Code 상태줄 (모델·컨텍스트·git·rate limit) — 순수 Node, jq/bash 불필요
+
+# dest: inplace(기본) = 기존 환경에 씀  → get / add 동사 지원
+#       new            = 새 디렉터리 생성 → new 동사 (stage 3)
+dest: inplace
+
+# add 시 기본 설치 위치 (~ 확장됨). 인자로 덮어쓸 수 있음: builder add <name> <target>
+target: ~/.claude
+
+# 복사할 payload. 생략하면 forge.yaml / README 를 뺀 디렉터리 전체.
+files:
+  - statusline-command.mjs
+
+# settings.json 배선 — stage 2에서 builder가 자동 적용. 지금은 선언만 (add 시 안내).
+patch:
+  - file: ~/.claude/settings.json
+    set:
+      statusLine.type: command
+      statusLine.command: node ~/.claude/statusline-command.mjs
