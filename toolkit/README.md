@@ -52,7 +52,8 @@ requires:                    # 필요한 런타임 (PATH 존재 여부를 doctor
 
 | 이름 | 언어 | 설명 |
 |------|------|------|
-| [`sysman`](./sysman) | Go | OS 상태 모니터링/제어 TUI (포트 점유·프로세스) |
+| [`sysman`](./sysman) | Go | OS 상태 모니터링/제어 TUI (포트 점유·프로세스·디바이스) |
+| [`builder`](./builder) | Go | [`forge/`](../forge) 레시피를 파일로 찍어내는 엔진 (스니펫 꺼내기·셋업 설치·프로젝트 생성) |
 
 ## 구조
 
@@ -62,8 +63,11 @@ toolkit/
 ├── internal/
 │   ├── manifest/manifest.go     tool.yaml 탐색·파싱 + 루트 탐지
 │   └── runner/runner.go         실행·빌드·전제조건 점검
-└── sysman/                      개별 도구 (자체 go.mod 모듈)
-    ├── tool.yaml                ← 게이트웨이가 읽는 매니페스트
+├── sysman/                      개별 도구 (자체 go.mod 모듈)
+│   ├── tool.yaml                ← 게이트웨이가 읽는 매니페스트
+│   └── ...
+└── builder/                     forge/ 레시피를 찍어내는 엔진 (자체 go.mod 모듈)
+    ├── tool.yaml
     └── ...
 ```
 

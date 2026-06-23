@@ -18,6 +18,8 @@ DevRig는 개발자가 바로 작업에 들어갈 수 있도록 필요한 도구
 |------|------|
 | [`toolkit/`](toolkit) | 유틸리티 도구 모음 + 단일 진입점 게이트웨이 |
 | [`toolkit/sysman/`](toolkit/sysman) | OS 상태 모니터링/제어 TUI (포트 점유·프로세스) |
+| [`toolkit/builder/`](toolkit/builder) | `forge/` 레시피를 파일로 찍어내는 엔진 |
+| [`forge/`](forge) | 재사용 가능한 레시피 라이브러리 (`builder` 엔진이 사용) |
 | [`docs/`](docs) | 문서 (설치 가이드 등) |
 
 ### Toolkit 게이트웨이
