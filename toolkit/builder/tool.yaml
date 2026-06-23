@@ -1,0 +1,8 @@
+# builder 실행/셋팅 매니페스트 — toolkit 게이트웨이가 자동 인식합니다.
+name: builder
+description: forge/ 레시피를 파일로 찍어내는 엔진 (스니펫 꺼내기·셋업 설치·프로젝트 생성)
+lang: go
+run: go run .
+build: go build -o builder .
+requires:
+  - go
